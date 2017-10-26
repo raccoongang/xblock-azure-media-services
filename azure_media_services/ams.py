@@ -1,21 +1,20 @@
-# Copyright (c) Microsoft Corporation. All Rights Reserved.
-# Licensed under the MIT license. See LICENSE file on the project webpage for details.
-
 """
-XBlock to allow for video playback from Azure Media Services
+Copyright (c) Microsoft Corporation. All Rights Reserved.
 
+Licensed under the MIT license. See LICENSE file on the project webpage for details.
+
+XBlock to allow for video playback from Azure Media Services
 Built using documentation from: http://amp.azure.net/libs/amp/latest/docs/index.html
 """
 
 import logging
 
-from .utils import _
-
-from xblock.core import String, Scope, List, XBlock
+from xblock.core import List, Scope, String, XBlock
 from xblock.fragment import Fragment
-
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
+
+from .utils import _
 
 log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
@@ -27,7 +26,7 @@ CLASS_PRIORITY = ['video']
 @XBlock.needs('i18n')
 class AMSXBlock(StudioEditableXBlockMixin, XBlock):
     """
-    The xBlock to play videos from Azure Media Services
+    The xBlock to play videos from Azure Media Services.
     """
 
     display_name = String(
@@ -72,7 +71,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         default="http://openedx.microsoft.com/",
         scope=Scope.settings
     )
-    token_scope= String(
+    token_scope = String(
         display_name=_("Token Scope"),
         help=_(
             "This value must match what is in the 'Content Protection' area of the Azure Media Services portal"
@@ -127,7 +126,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
     def _get_context_for_template(self):
         """
-        Add parameters for the student view
+        Add parameters for the student view.
         """
         context = {
             "video_url": self.video_url,
@@ -146,13 +145,14 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
     def student_view(self, context):
         """
-        XBlock student view of this component.
+        Student view of this component.
 
         Arguments:
             context (dict): XBlock context
 
         Returns:
             xblock.fragment.Fragment: XBlock HTML fragment
+
         """
         fragment = Fragment()
         loader = ResourceLoader(__name__)
@@ -182,11 +182,11 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
         fragment.initialize_js('AzureMediaServicesBlock')
         return fragment
-    
+
     # xblock runtime navigation tab video image
     def get_icon_class(self):
         """
-        Returns the highest priority icon class.
+        Return the highest priority icon class.
         """
         child_classes = set(child.get_icon_class() for child in self.get_children())
         new_class = 'video'
@@ -194,16 +194,16 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             if higher_class in child_classes:
                 new_class = higher_class
         return new_class
-    
+
     @XBlock.json_handler
     def publish_event(self, data, suffix=''):
         try:
             event_type = data.pop('event_type')
-        except KeyError as e:
+        except KeyError:
             return {'result': 'error', 'message': 'Missing event_type in JSON data'}
 
         data['video_url'] = self.video_url
         data['user_id'] = self.scope_ids.user_id
 
         self.runtime.publish(self, event_type, data)
-        return {'result':'success'}
+        return {'result': 'success'}
