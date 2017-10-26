@@ -8,26 +8,21 @@ Built using documentation from: http://amp.azure.net/libs/amp/latest/docs/index.
 """
 
 import logging
-import jwt
-import base64
-import time
-
-from uuid import uuid4
 
 from .utils import _
 
 from xblock.core import String, Scope, List, XBlock
-from xblock.fields import Boolean, Float, Integer, Dict
 from xblock.fragment import Fragment
-from xblock.validation import ValidationMessage
 
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 log = logging.getLogger(__name__)
+loader = ResourceLoader(__name__)
 
 # According to edx-platform vertical xblocks
 CLASS_PRIORITY = ['video']
+
 
 @XBlock.needs('i18n')
 class AMSXBlock(StudioEditableXBlockMixin, XBlock):
@@ -107,6 +102,29 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         'token_issuer', 'token_scope', 'captions', 'transcript_url', 'download_url',
     )
 
+    def studio_view(self, context):
+        """
+        Render a form for editing this XBlock
+        """
+        fragment = Fragment()
+        context = {'fields': []}
+        # Build a list of all the fields that can be edited:
+        for field_name in self.editable_fields:
+            field = self.fields[field_name]
+            assert field.scope in (Scope.content, Scope.settings), (
+                "Only Scope.content or Scope.settings fields can be used with "
+                "StudioEditableXBlockMixin. Other scopes are for user-specific data and are "
+                "not generally created/configured by content authors in Studio."
+            )
+            field_info = self._make_field_info(field_name, field)
+            if field_info is not None:
+                context["fields"].append(field_info)
+        fragment.content = loader.render_django_template('templates/studio_edit.html', context)
+        fragment.add_css(loader.load_unicode('public/css/studio.css'))
+        fragment.add_javascript(loader.load_unicode('static/js/studio_edit.js'))
+        fragment.initialize_js('StudioEditableXBlockMixin')
+        return fragment
+
     def _get_context_for_template(self):
         """
         Add parameters for the student view
@@ -116,13 +134,13 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             "protection_type": self.protection_type,
             "captions": self.captions,
             "transcript_url": self.transcript_url,
-            "download_url": self.download_url,			
+            "download_url": self.download_url,
         }
 
         if self.protection_type:
-    	    context.update({
-	    	    "auth_token": self.verification_key,
-	        })
+            context.update({
+                "auth_token": self.verification_key,
+            })
 
         return context
 

@@ -30,6 +30,7 @@ setup(
     packages=[
         'azure_media_services',
     ],
+    include_package_data=True,
     install_requires=[
         'PyJWT',
         'bleach',
