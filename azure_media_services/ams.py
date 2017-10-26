@@ -103,7 +103,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
     def studio_view(self, context):
         """
-        Render a form for editing this XBlock
+        Render a form for editing this XBlock.
         """
         fragment = Fragment()
         context = {'fields': []}
@@ -155,9 +155,8 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
         """
         fragment = Fragment()
-        loader = ResourceLoader(__name__)
         context.update(self._get_context_for_template())
-        fragment.add_content(loader.render_mako_template('/templates/player.html', context))
+        fragment.add_content(loader.render_django_template('/templates/player.html', context))
 
         '''
         Note: DO NOT USE the "latest" folder in production, but specify a version
