@@ -125,7 +125,12 @@
 
           <div class="component-tab is-inactive tab-advanced">
             <div class="wrapper-comp-settings">
-              presents upload, browse and select functionality for video and transcripts files
+              {% trans 'Videos list' %}
+              <ul>
+                {% for locator in list_locators %}
+                <li>{{ forloop.counter }}. {{ locator.Path }}</li>
+                {% endfor %}
+              </ul>
             </div>
           </div>
         </div>

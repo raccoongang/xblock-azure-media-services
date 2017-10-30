@@ -9,12 +9,17 @@ Built using documentation from: http://amp.azure.net/libs/amp/latest/docs/index.
 
 import logging
 
+from django.conf import settings
+
 from xblock.core import List, Scope, String, XBlock
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
+from .media_services_management_client import MediaServicesManagementClient
+from .models import SettingsAzureOrganization
 from .utils import _
+
 
 log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
@@ -28,6 +33,8 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
     """
     The xBlock to play videos from Azure Media Services.
     """
+
+    RESOURCE = 'https://rest.media.azure.net'
 
     display_name = String(
         display_name=_("Display Name"),
@@ -105,8 +112,19 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Render a form for editing this XBlock.
         """
+        settings_azure = self.get_settings_azure()
+        list_locators = []
+
+        if settings_azure:
+            media_services = self.get_media_services(settings_azure)
+            list_locators = media_services.get_list_locators()
+
+        context = {
+            'fields': [],
+            'is_settings_azure': settings_azure is None,
+            'list_locators': list_locators
+        }
         fragment = Fragment()
-        context = {'fields': []}
         # Build a list of all the fields that can be edited:
         for field_name in self.editable_fields:
             field = self.fields[field_name]
@@ -206,3 +224,30 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
         self.runtime.publish(self, event_type, data)
         return {'result': 'success'}
+
+    def get_settings_azure(self):
+        parameters = None
+        settings_azure = SettingsAzureOrganization.objects.filter(organization__short_name=self.location.org).first()
+        if settings_azure:
+            parameters = {
+                'client_id': settings_azure.client_id,
+                'secret': settings_azure.client_secret,
+                'tenant': settings_azure.tenant,
+                'resource': self.RESOURCE,
+                'rest_api_endpoint': settings_azure.rest_api_endpoint
+            }
+        elif (settings.FEATURES.get('AZURE_CLIENT_ID') and
+              settings.FEATURES.get('AZURE_CLIENT_SECRET') and
+              settings.FEATURES.get('AZURE_TENANT') and
+              settings.FEATURES.get('AZURE_REST_API_ENDPOINT')):
+            parameters = {
+                'client_id': settings.FEATURES.get('AZURE_CLIENT_ID'),
+                'secret': settings.FEATURES.get('AZURE_CLIENT_SECRET'),
+                'tenant': settings_azure.tenant,
+                'resource': self.RESOURCE,
+                'rest_api_endpoint': settings.FEATURES.get('AZURE_REST_API_ENDPOINT')
+            }
+        return parameters
+
+    def get_media_services(self, settings_azure):
+        return MediaServicesManagementClient(settings_azure)
