@@ -15,11 +15,17 @@ class Migration(migrations.Migration):
             name='SettingsAzureOrganization',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('tenant', models.CharField(max_length=255)),
-                ('rest_api_endpoint', models.URLField(max_length=255)),
-                ('client_id', models.CharField(max_length=255)),
-                ('client_secret', models.CharField(max_length=255)),
-                ('organization', models.ForeignKey(to='organizations.Organization')),
+                ('client_id', models.CharField(help_text='The client ID of the Azure AD application', max_length=255)),
+                ('client_secret', models.CharField(
+                    help_text='The client key of the Azure AD application',
+                    max_length=255)),
+                ('tenant', models.CharField(
+                    help_text='The Azure AD tenant domain where the Azure AD application resides',
+                    max_length=255)),
+                ('rest_api_endpoint', models.URLField(
+                    help_text='The REST API endpoint of the Azure Media Services account',
+                    max_length=255)),
+                ('organization', models.OneToOneField(to='organizations.Organization')),
             ],
         ),
     ]

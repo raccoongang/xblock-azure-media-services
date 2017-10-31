@@ -5,7 +5,7 @@ from organizations.models import Organization
 
 
 class SettingsAzureOrganization(models.Model):
-    organization = models.ForeignKey(Organization)
+    organization = models.OneToOneField(Organization)
     client_id = models.CharField(
         max_length=255,
         help_text=_('The client ID of the Azure AD application')
