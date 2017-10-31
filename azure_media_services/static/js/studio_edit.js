@@ -1,4 +1,4 @@
-/* global tinyMCE baseUrl */
+/* global tinyMCE baseUrl gettext */
 
 /**
  * Javascript for StudioEditableXBlockMixin.

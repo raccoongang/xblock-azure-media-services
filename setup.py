@@ -37,6 +37,8 @@ setup(
         'mako',
         'XBlock',
         'xblock-utils==1.0.5',
+        'edx-organizations==0.4.7',
+        'azure==2.0.0',
     ],
     dependency_links=[
         'git+https://github.com/edx/xblock-utils.git@v1.0.5#egg=xblock-utils-1.0.5',
