@@ -12,7 +12,8 @@ if not settings.configured:
         INSTALLED_APPS=(
             'organizations',
             'azure_media_services',
-        )
+        ),
+        FEATURES={}
     )
     django.setup()
 
