@@ -121,7 +121,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
         context = {
             'fields': [],
-            'is_settings_azure': settings_azure is None,
+            'is_settings_azure': settings_azure is not None,
             'list_locators': list_locators
         }
         fragment = Fragment()
@@ -243,7 +243,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             parameters = {
                 'client_id': settings.FEATURES.get('AZURE_CLIENT_ID'),
                 'secret': settings.FEATURES.get('AZURE_CLIENT_SECRET'),
-                'tenant': settings_azure.tenant,
+                'tenant': settings.FEATURES.get('AZURE_TENANT'),
                 'resource': self.RESOURCE,
                 'rest_api_endpoint': settings.FEATURES.get('AZURE_REST_API_ENDPOINT')
             }
