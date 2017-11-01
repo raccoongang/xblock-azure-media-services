@@ -36,6 +36,7 @@ setup(
         'bleach',
         'mako',
         'XBlock',
+        'web_fragments==0.2.2',
         'azure==2.0.0',
     ],
     entry_points={

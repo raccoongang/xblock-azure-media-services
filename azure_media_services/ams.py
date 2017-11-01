@@ -10,9 +10,8 @@ Built using documentation from: http://amp.azure.net/libs/amp/latest/docs/index.
 import logging
 
 from django.conf import settings
-
+from web_fragments.fragment import Fragment
 from xblock.core import List, Scope, String, XBlock
-from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
