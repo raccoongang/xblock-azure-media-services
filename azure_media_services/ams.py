@@ -23,9 +23,6 @@ from .utils import _
 log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
 
-# According to edx-platform vertical xblocks
-CLASS_PRIORITY = ['video']
-
 
 @XBlock.needs('i18n')
 class AMSXBlock(StudioEditableXBlockMixin, XBlock):
@@ -34,6 +31,8 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
     """
 
     RESOURCE = 'https://rest.media.azure.net'
+
+    icon_class = "video"
 
     display_name = String(
         display_name=_("Display Name"),
@@ -135,6 +134,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             field_info = self._make_field_info(field_name, field)
             if field_info is not None:
                 context["fields"].append(field_info)
+
         fragment.content = loader.render_django_template('templates/studio_edit.html', context)
         fragment.add_css(loader.load_unicode('public/css/studio.css'))
         fragment.add_javascript(loader.load_unicode('static/js/studio_edit.js'))
@@ -198,18 +198,6 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
         fragment.initialize_js('AzureMediaServicesBlock')
         return fragment
-
-    # xblock runtime navigation tab video image
-    def get_icon_class(self):
-        """
-        Return the highest priority icon class.
-        """
-        child_classes = set(child.get_icon_class() for child in self.get_children())
-        new_class = 'video'
-        for higher_class in CLASS_PRIORITY:
-            if higher_class in child_classes:
-                new_class = higher_class
-        return new_class
 
     @XBlock.json_handler
     def publish_event(self, data, suffix=''):
