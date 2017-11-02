@@ -128,9 +128,7 @@
               {% trans 'Videos list' %}
               <ul>
                 {% for locator in list_locators %}
-                <li>{{ forloop.counter }}. {{ locator.Path }}</li>
-
-                {% include "templates/video-item.html" with item=locator %}
+                  {% include 'video-item.html' with item=locator forloop=forloop%}
                 {% endfor %}
               </ul>
             </div>

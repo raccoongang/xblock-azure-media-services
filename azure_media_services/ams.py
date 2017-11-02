@@ -17,8 +17,7 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from .media_services_management_client import MediaServicesManagementClient
 from .models import SettingsAzureOrganization
-from .utils import _
-
+from .utils import _, render_template
 
 log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
@@ -173,7 +172,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         """
         fragment = Fragment()
         context.update(self._get_context_for_template())
-        fragment.add_content(loader.render_django_template('/templates/player.html', context))
+        fragment.content = render_template('player.html.html', **context)
 
         '''
         Note: DO NOT USE the "latest" folder in production, but specify a version

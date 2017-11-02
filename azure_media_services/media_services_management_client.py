@@ -36,6 +36,8 @@ class MediaServicesManagementClient(object):
             'Accept-Charset': 'UTF-8',
             'x-ms-version': '2.15',
             'Host': self.host,
-            'Authorization': '{} {}'.format(self.credentials.token['token_type'],
-                                            self.credentials.token['access_token'])
+            'Authorization': '{} {}'.format(
+                self.credentials.token['token_type'],
+                self.credentials.token['access_token']
+            )
         }
