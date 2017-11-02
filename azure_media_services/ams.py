@@ -12,6 +12,7 @@ import logging
 from django.conf import settings
 
 from xblock.core import List, Scope, String, XBlock
+from xblock.fields import Boolean
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
@@ -91,9 +92,10 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         help=_("A list of caption definitions"),
         scope=Scope.settings
     )
-    transcript_url = String(
-        display_name=_("Transcript URL"),
-        help=_("A transcript URL"),
+    transcripts_enabled = Boolean(
+        display_name=_("Transcripts enabled"),
+        help=_("Transcripts switch"),
+        default=False,
         scope=Scope.settings
     )
     download_url = String(
@@ -105,7 +107,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
     # These are what become visible in the Mixin editor
     editable_fields = (
         'display_name', 'video_url', 'verification_key', 'protection_type',
-        'token_issuer', 'token_scope', 'captions', 'transcript_url', 'download_url',
+        'token_issuer', 'token_scope', 'captions', 'transcripts_enabled', 'download_url',
     )
 
     def studio_view(self, context):
@@ -150,7 +152,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             "video_url": self.video_url,
             "protection_type": self.protection_type,
             "captions": self.captions,
-            "transcript_url": self.transcript_url,
+            "transcripts_enabled": self.transcripts_enabled,
             "download_url": self.download_url,
         }
 
