@@ -28,11 +28,35 @@
         {% if transcripts_enabled %}
         {# This element is re-parented dynamically after the AMP is initialized and other buttons are positioned.#}
         <div class="subtitles" data-transcript-url="{{ transcript_url }}">
-{#            This element is re-parented dynamically after the AMP is initialized and other buttons are positioned.#}
-            <div class="azure-media-player-toggle-button-style fa fa-quote-left toggleTranscript" role="button" aria-live="polite" tabindex="0">
-                <div class="vjs-control-content"><span class="vjs-control-text">Toggle</span></div>
+            <div class="azure-media-player-toggle-button-style
+                        toggleTranscript
+                        fa fa-quote-left
+                        vjs-menu-button
+                        amp-subtitles-control"
+                 role="button" aria-live="polite" tabindex="0"
+            >
+                <div class="vjs-control-content">
+                  <span class="vjs-control-text">Transcripts</span>
+                  <div class="vjs-menu">
+                    <ul class="vjs-menu-content">
+                      <li class="vjs-menu-item vjs-selected" role="button" aria-live="polite" tabindex="0"
+                          aria-selected="true">
+                        Off
+                      </li>
+
+                      {% for transcript in captions %}
+                      <li class="vjs-menu-item" role="button" aria-live="polite" tabindex="0" aria-selected="false">
+                        {{ transcript.label }}
+                      </li>
+                      {% endfor %}
+
+                      <li class="amp-menu-header">Transcripts</li>
+                    </ul>
+                  </div>
+                </div>
             </div>
         </div>
+
         {% endif %}
     </div>
 
