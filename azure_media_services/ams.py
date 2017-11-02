@@ -135,7 +135,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             if field_info is not None:
                 context["fields"].append(field_info)
 
-        fragment.content = loader.render_django_template('templates/studio_edit.html', context)
+        fragment.content = render_template('studio-edit.html', **context)
         fragment.add_css(loader.load_unicode('public/css/studio.css'))
         fragment.add_javascript(loader.load_unicode('static/js/studio_edit.js'))
         fragment.initialize_js('StudioEditableXBlockMixin')

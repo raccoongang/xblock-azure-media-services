@@ -48,7 +48,7 @@ class AMSXBlockTests(unittest.TestCase):
         render_django_template.assert_called_once()
 
         template_arg = render_django_template.call_args[0][0]
-        self.assertEqual(template_arg, 'templates/studio_edit.html')
+        self.assertEqual(template_arg, 'templates/studio-edit.html')
 
         context = render_django_template.call_args[0][1]
         self.assertEqual(context['is_settings_azure'], False)
