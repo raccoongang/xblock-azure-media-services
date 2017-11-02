@@ -4,6 +4,19 @@
 /* global WebVTT _ amp */
 
 
+var events = {
+    played: 'edx.video.played',
+    paused: 'edx.video.paused',
+    stopped: 'edx.video.stopped',
+    positionChanged: 'edx.video.position.changed',
+    transcriptShown: 'edx.video.transcript.show',
+    transcriptsHidden: 'edx.video.transcript.hidden',
+    videoLoaded: 'edx.video.loaded',
+    captionsShown: 'edx.video.closed_captions.shown',
+    captionsHidden: 'edx.video.closed_captions.hidden'
+};
+
+
 /**
  * Send events back to server-side xBlock
  * @param eventPostUrl
@@ -20,6 +33,21 @@ function sendPlayerEvent(eventPostUrl, name, data) {
     });
 }
 
+/**
+ * Toggle transcript view.
+ */
+function toggleTranscriptsBar(playerContainer) {
+    'use strict';
+    var status;
+    if (playerContainer.hasClass('closed')) {
+        playerContainer.removeClass('closed');
+        status = 'opened';
+    } else {
+        playerContainer.addClass('closed');
+        status = 'closed';
+    }
+    return status === 'opened' ? events.transcriptShown : events.transcriptsHidden;
+}
 
 /**
  * This is called regularly while the video plays
@@ -67,7 +95,6 @@ function syncTimer(player, transcriptCues, $transcriptElement) {
         }
     }
 }
-
 
 /**
  * Transcripts creating.
@@ -167,10 +194,8 @@ function AzureMediaServicesBlock(runtime, container) {
 
         var subtitleEls;
         var languageName;
-        var eventType;
         var eventPostUrl;
         var timeHandler;
-        var $target;
         var xhr;
 
         // Fyi, container contains all of player.html so it is an ancestor of $vidAndTranscript
@@ -193,7 +218,7 @@ function AzureMediaServicesBlock(runtime, container) {
 
         this.addEventListener(amp.eventName.pause,
             function(evt) { // eslint-disable-line no-unused-vars
-                sendPlayerEvent(eventPostUrl, 'edx.video.paused', {});
+                sendPlayerEvent(eventPostUrl, events.paused, {});
 
                 if (timeHandler !== null) {
                     clearInterval(timeHandler);
@@ -203,7 +228,7 @@ function AzureMediaServicesBlock(runtime, container) {
 
         this.addEventListener(amp.eventName.play,
             function(evt) { // eslint-disable-line no-unused-vars
-                sendPlayerEvent(eventPostUrl, 'edx.video.played', {});
+                sendPlayerEvent(eventPostUrl, events.played, {});
 
                 timeHandler = setInterval(
                     function() {
@@ -226,6 +251,7 @@ function AzureMediaServicesBlock(runtime, container) {
 
                     // Enable button action.
                     $transcriptButton.on('click keydown', (function(evt) { // eslint-disable-line no-shadow
+                        var reportEvent;
                         keycode = (evt.type === 'keydown' && evt.keycode ? evt.keyCode : evt.which);
                         if (evt.type !== 'click' && (keycode !== 32 && keycode !== 13)) {
                             return;
@@ -234,34 +260,24 @@ function AzureMediaServicesBlock(runtime, container) {
                             evt.preventDefault();
                         }
 
-                        // Toggle transcript view.
-                        eventType = '';
-                        if ($vidAndTranscript.hasClass('closed')) {
-                            eventType = 'edx.video.transcript.show';
-                            $vidAndTranscript.removeClass('closed');
-                        } else {
-                            eventType = 'edx.video.transcript.hidden';
-                            $vidAndTranscript.addClass('closed');
-                        }
-
-                        // Log toggle transcript event.
-                        sendPlayerEvent(eventPostUrl, eventType, {});
+                        reportEvent = toggleTranscriptsBar($vidAndTranscript);
+                        sendPlayerEvent(eventPostUrl, reportEvent, {});
                     }));
                 }
 
-                sendPlayerEvent(eventPostUrl, 'edx.video.loaded', {});
+                sendPlayerEvent(eventPostUrl, events.videoLoaded, {});
             }
         );
 
         this.addEventListener(amp.eventName.seeked,
             function(evt) { // eslint-disable-line no-unused-vars
-                sendPlayerEvent(eventPostUrl, 'edx.video.position.changed', {});
+                sendPlayerEvent(eventPostUrl, events.positionChanged, {});
             }
         );
 
         this.addEventListener(amp.eventName.ended,
             function(evt) { // eslint-disable-line no-unused-vars
-                sendPlayerEvent(eventPostUrl, 'edx.video.stopped', {});
+                sendPlayerEvent(eventPostUrl, events.stopped, {});
 
                 if (timeHandler !== null) {
                     clearInterval(timeHandler);
@@ -287,16 +303,15 @@ function AzureMediaServicesBlock(runtime, container) {
         subtitleEls = $(container).find('.vjs-subtitles-button .vjs-menu-item');
 
         subtitleEls.mousedown(function(evt) {
+            var reportEvent = events.captionsShown;
             // TODO: we should attach to a different event. For example, this can also be toggled via keyboard.
-            $target = $(evt.target);
-            languageName = $target.html();
-            eventType = 'edx.video.closed_captions.shown';
+            languageName = $(evt.target).html();
             if (languageName === 'Off') {
-                eventType = 'edx.video.closed_captions.hidden';
+                reportEvent = events.captionsHidden;
                 languageName = '';
             }
 
-            sendPlayerEvent(eventPostUrl, eventType, {language_name: languageName});
+            sendPlayerEvent(eventPostUrl, reportEvent, {language_name: languageName});
         });
     });
 }
