@@ -33,21 +33,6 @@ function sendPlayerEvent(eventPostUrl, name, data) {
     });
 }
 
-/**
- * Toggle transcript view.
- */
-function toggleTranscriptsBar(playerContainer) {
-    'use strict';
-    var status;
-    if (playerContainer.hasClass('closed')) {
-        playerContainer.removeClass('closed');
-        status = 'opened';
-    } else {
-        playerContainer.addClass('closed');
-        status = 'closed';
-    }
-    return status === 'opened' ? events.transcriptShown : events.transcriptsHidden;
-}
 
 /**
  * This is called regularly while the video plays
@@ -112,6 +97,8 @@ function initTranscript(player, transcript, $transcriptElement) {
     var regions = [];
     var startTime;
     var $transcriptItems;
+
+    $transcriptElement.empty();
 
     parser.oncue = function(cue) { // eslint-disable-line no-shadow
         cues.push(cue);
@@ -240,31 +227,52 @@ function AzureMediaServicesBlock(runtime, container) {
         );
 
         this.addEventListener(amp.eventName.loadeddata,
-            function(evt) { // eslint-disable-line no-unused-vars
+            function() { // eslint-disable-line no-unused-vars
                 var $transcriptButton;
-                var keycode;
+                var $transcriptButtonMenu;
+                var reportEvent;
                 if ($transcriptElement.length) {
                     // Find and re-position button markup. This must be done
                     // after AMP initializes built-in player controls.
                     $transcriptButton = $transcriptElement.find('.toggleTranscript').first();
                     $vidParent.find('.amp-controlbaricons-right').first().append($transcriptButton);
 
-                    // Enable button action.
-                    $transcriptButton.on('click keydown', (function(evt) { // eslint-disable-line no-shadow
-                        var reportEvent;
-                        keycode = (evt.type === 'keydown' && evt.keycode ? evt.keyCode : evt.which);
-                        if (evt.type !== 'click' && (keycode !== 32 && keycode !== 13)) {
-                            return;
-                        }
-                        if (keycode === 32) {
-                            evt.preventDefault();
-                        }
-
-                        reportEvent = toggleTranscriptsBar($vidAndTranscript);
-                        sendPlayerEvent(eventPostUrl, reportEvent, {});
+                    $transcriptButtonMenu = $transcriptButton.find('.vjs-menu').first();
+                    $transcriptButtonMenu.css({right: '0px', left: 'inherit'});
+                    $transcriptButton.on('mouseenter mouseleave', (function() {
+                        $transcriptButtonMenu.toggle();
                     }));
-                }
 
+                    $transcriptButtonMenu.on('click', function(evt) {
+                        var $target = $(evt.target);
+                        $transcriptButtonMenu.find('.vjs-menu-item')
+                            .removeClass('vjs-selected')
+                            .attr('aria-selected', false);
+                        $target
+                            .addClass('vjs-selected')
+                            .attr('aria-selected', true);
+
+                        if ($.trim($target.html()) === 'Off') {
+                            $vidAndTranscript.addClass('closed');
+                            reportEvent = events.transcriptsHidden;
+                        } else {
+                            if ($transcriptElement.length) {
+                                xhr = new XMLHttpRequest();
+                                xhr.open('GET', window.location.protocol + $target.data('src'));
+                                xhr.onreadystatechange = function() {
+                                    if (xhr.readyState === 4) {
+                                        // Parse transcript.
+                                        transcriptCues = initTranscript(self, xhr.responseText, $transcriptElement);
+                                    }
+                                };
+                                xhr.send();
+                            }
+                            $vidAndTranscript.removeClass('closed');
+                            reportEvent = events.transcriptShown;
+                        }
+                        sendPlayerEvent(eventPostUrl, reportEvent, {});
+                    });
+                }
                 sendPlayerEvent(eventPostUrl, events.videoLoaded, {});
             }
         );
@@ -284,19 +292,6 @@ function AzureMediaServicesBlock(runtime, container) {
                 }
             }
         );
-
-        // Ajax request for transcript file.
-        if ($transcriptElement.length) {
-            xhr = new XMLHttpRequest();
-            xhr.open('GET', $transcriptElement.data('transcript-url'));
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    // Parse transcript.
-                    transcriptCues = initTranscript(self, xhr.responseText, $transcriptElement);
-                }
-            };
-            xhr.send();
-        }
 
         // Log when closed captions (subtitles) are toggled.
         // NOTE we use classes from Azure Media Player which may change.
