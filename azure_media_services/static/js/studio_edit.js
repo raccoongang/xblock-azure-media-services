@@ -15,7 +15,7 @@ function StudioEditableXBlockMixin(runtime, element) {
     var tinyMceAvailable = (typeof $.fn.tinymce !== 'undefined');
     var datepickerAvailable = (typeof $.fn.datepicker !== 'undefined'); // Studio includes datepicker jQuery plugin
     var handlerUrlGetCaptions = runtime.handlerUrl(element, 'get_captions');
-    var $containerCaptions = $(element).find('.js-container-сaptions');
+    var $containerCaptions = $(element).find('.js-container-captions');
 
     $(element).find('.field-data-control').each(function() {
         var $field = $(this);
@@ -257,9 +257,9 @@ function StudioEditableXBlockMixin(runtime, element) {
             $containerCaptions.text(gettext('No captions/transcripts available for selected video.'));
         } else {
             for (i = 0; i < data.length; i++) {
-                html = '<li><input id="checkbox-captions-' + i + '" type="checkbox" name="captions" value="' +
+                html = '<li class="select-holder"><div class="wrap-input-captions"><input id="checkbox-captions-' + i + '" type="checkbox" name="captions" value="' +
                         data[i].download_url + '"/><label for="checkbox-captions-' + i + '">' +
-                        data[i].name_file + '</label>' + $selectLang.clone().removeClass('hidden').html() + '</li>';
+                        data[i].name_file + '</label></div>' + $selectLang.clone().removeClass('hidden').html() + '</li>';
                 $containerCaptions.append(html);
             }
             setOnChangeCaptions();
@@ -272,7 +272,7 @@ function StudioEditableXBlockMixin(runtime, element) {
      */
     function getCaptions($ev) {
         var assetId = $ev.data('asset-id');
-        $containerCaptions.html(gettext('Loader'));
+        $containerCaptions.html('<div class="loader-wrapper"><span class="loader"><svg class="icon icon-spinner11"><use xlink:href="#icon-spinner11"></use></svg></span></div class="loader-wrapper">');
         $.ajax({
             type: 'POST',
             url: handlerUrlGetCaptions,
