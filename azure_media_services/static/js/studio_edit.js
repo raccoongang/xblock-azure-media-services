@@ -220,7 +220,7 @@ function StudioEditableXBlockMixin(runtime, element) {
     function setCaptionsField() {
         var captions = [];
         $containerCaptions.find('[name = "captions"]:checked').each(function() {
-            var $selectLang = $(this).siblings('select').find('option:selected');
+            var $selectLang = $(this).parents('li').find('option:selected');
             var caption = {
                 kind: 'subtitles',
                 src: $(this).val(),
@@ -257,9 +257,11 @@ function StudioEditableXBlockMixin(runtime, element) {
             $containerCaptions.text(gettext('No captions/transcripts available for selected video.'));
         } else {
             for (i = 0; i < data.length; i++) {
-                html = '<li class="select-holder"><div class="wrap-input-captions"><input id="checkbox-captions-' + i + '" type="checkbox" name="captions" value="' +
+                html = '<li class="select-holder"><div class="wrap-input-captions"><input id="checkbox-captions-' + i +
+                        '" type="checkbox" name="captions" value="' +
                         data[i].download_url + '"/><label for="checkbox-captions-' + i + '">' +
-                        data[i].name_file + '</label></div>' + $selectLang.clone().removeClass('hidden').html() + '</li>';
+                        data[i].name_file + '</label></div>' +
+                        $selectLang.clone().removeClass('hidden').html() + '</li>';
                 $containerCaptions.append(html);
             }
             setOnChangeCaptions();
@@ -272,7 +274,8 @@ function StudioEditableXBlockMixin(runtime, element) {
      */
     function getCaptions($ev) {
         var assetId = $ev.data('asset-id');
-        $containerCaptions.html('<div class="loader-wrapper"><span class="loader"><svg class="icon icon-spinner11"><use xlink:href="#icon-spinner11"></use></svg></span></div class="loader-wrapper">');
+        $containerCaptions.html('<div class="loader-wrapper"><span class="loader"><svg class="icon icon-spinner11">' +
+            '<use xlink:href="#icon-spinner11"></use></svg></span></div class="loader-wrapper">');
         $.ajax({
             type: 'POST',
             url: handlerUrlGetCaptions,

@@ -73,7 +73,7 @@
           Download transcripts:
           <div id="myDropdown" class="dropdown-content">
             {% for transcript in captions %}
-            <a href="{{ transcript.src }}" download title="{{ transcript.label }}">{{ transcript.srclang }}</a>
+            <a href="{{ transcript.src }}" download title="{{ transcript.label }}">{{ transcript.label }}</a>
             {% endfor %}
           </div>
         </li>

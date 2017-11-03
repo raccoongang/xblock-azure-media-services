@@ -266,8 +266,9 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             if file.get('MimeType', '') == 'application/octet-stream' and file.get('Name', '').endswith('.ism'):
                 name_file = file['Name'].encode('utf-8')
                 break
+        path = locator.get('Path').split(':', 1)[-1]
         return {
-            'url_smooth_streaming': '{}{}/manifest'.format(locator.get('Path'), name_file),
+            'url_smooth_streaming': '{}{}/manifest'.format(path, name_file),
             'name_file': name_file,
             'asset_id': locator.get('AssetId')
         }
@@ -293,7 +294,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         for file in files:
             if file.get('Name', '').endswith('.vtt'):
                 name_file = file['Name'].encode('utf-8')
-                path = locator['Path']
+                path = locator.get('Path').split(':', 1)[-1]
                 download_url = '/{}?'.format(name_file).join(path.split('?'))
                 data.append({
                     'download_url': download_url,
