@@ -52,7 +52,7 @@ class AMSXBlockTests(unittest.TestCase):
 
         context = render_django_template.call_args[0][1]
         self.assertEqual(context['is_settings_azure'], False)
-        self.assertEqual(context['list_locators'], [])
+        self.assertEqual(context['list_stream_videos'], [])
         self.assertEqual(len(context['fields']), 9)
 
         frag.add_javascript.assert_called_once_with('static/js/studio_edit.js')
@@ -136,10 +136,10 @@ class MediaServicesManagementClientTests(unittest.TestCase):
     @mock.patch('azure_media_services.media_services_management_client.requests.get',
                 return_value=mock.Mock(status_code=200,
                                        json=mock.Mock(return_value={'value': ['locator1', 'locator2']})))
-    def test_get_list_locators(self, requests_get, headers):
+    def test_get_list_locators_on_demand_origin(self, requests_get, headers):
         media_services = self.make_one()
-        locators = media_services.get_list_locators()
-        requests_get.assert_called_once_with('https://rest_api_endpoint/api/Locators', headers={})
+        locators = media_services.get_list_locators_on_demand_origin()
+        requests_get.assert_called_once_with('https://rest_api_endpoint/api/Locators?$filter=Type eq 2', headers={})
         self.assertEqual(locators, ['locator1', 'locator2'])
 
     def test_get_headers(self):

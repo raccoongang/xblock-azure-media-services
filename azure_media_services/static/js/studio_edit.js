@@ -14,6 +14,8 @@ function StudioEditableXBlockMixin(runtime, element) {
     // Studio includes a copy of tinyMCE and its jQuery plugin
     var tinyMceAvailable = (typeof $.fn.tinymce !== 'undefined');
     var datepickerAvailable = (typeof $.fn.datepicker !== 'undefined'); // Studio includes datepicker jQuery plugin
+    var handlerUrlGetCaptions = runtime.handlerUrl(element, 'get_captions');
+    var $containerCaptions = $(element).find('.js-container-сaptions');
 
     $(element).find('.field-data-control').each(function() {
         var $field = $(this);
@@ -193,6 +195,98 @@ function StudioEditableXBlockMixin(runtime, element) {
         }
         runtime.notify('cancel', {});
     });
+    /**
+     * Handle error messages
+     * @param jqXHR
+     */
+    function showErrorFail(jqXHR) {
+        var message = gettext('This may be happening because of an error with our server or your internet ' +
+                'connection. Try refreshing the page or making sure you are online.');
+        if (jqXHR.responseText) { // Is there a more specific error message we can show?
+            try {
+                message = JSON.parse(jqXHR.responseText).error;
+                if (typeof message === 'object' && message.messages) {
+                    // e.g. {"error": {"messages": [{"text": "Unknown user 'bob'!", "type": "error"}, ...]}} etc.
+                    message = $.map(message.messages, function(msg) { return msg.text; }).join(', ');
+                }
+            } catch (error) { message = jqXHR.responseText.substr(0, 300); }
+        }
+        runtime.notify('error', {title: gettext('Unable to update settings'), message: message});
+    }
+
+    /**
+     * setCaptionsField
+     */
+    function setCaptionsField() {
+        var captions = [];
+        $containerCaptions.find('[name = "captions"]:checked').each(function() {
+            var $selectLang = $(this).siblings('select').find('option:selected');
+            var caption = {
+                kind: 'subtitles',
+                src: $(this).val(),
+                srclang: $selectLang.val(),
+                label: $selectLang.text()
+            };
+            captions.push(caption);
+        });
+        $(element).find('[data-field-name = "captions"] textarea').val(JSON.stringify(captions))
+            .trigger('change');
+    }
+
+    /**
+     * setOnChangeCaptions
+     */
+    function setOnChangeCaptions() {
+        $containerCaptions.find('[name = "captions"]').on('change', function() {
+            setCaptionsField();
+        });
+        $containerCaptions.find('[name = "language"]:visible').on('change', function() {
+            setCaptionsField();
+        });
+    }
+
+    /**
+     * renderCaptions
+     * @param data
+     */
+    function renderCaptions(data) {
+        var i, html;
+        var $selectLang = $(element).find('.js-tempate-lang');
+        $containerCaptions.empty();
+        if (data.length === 0) {
+            $containerCaptions.text(gettext('No captions/transcripts available for selected video.'));
+        } else {
+            for (i = 0; i < data.length; i++) {
+                html = '<li><input id="checkbox-captions-' + i + '" type="checkbox" name="captions" value="' +
+                        data[i].download_url + '"/><label for="checkbox-captions-' + i + '">' +
+                        data[i].name_file + '</label>' + $selectLang.clone().removeClass('hidden').html() + '</li>';
+                $containerCaptions.append(html);
+            }
+            setOnChangeCaptions();
+        }
+    }
+
+    /**
+     * getCaptions
+     * @param $ev
+     */
+    function getCaptions($ev) {
+        var assetId = $ev.data('asset-id');
+        $containerCaptions.html(gettext('Loader'));
+        $.ajax({
+            type: 'POST',
+            url: handlerUrlGetCaptions,
+            data: JSON.stringify({asset_id: assetId}),
+            dataType: 'json',
+            success: function(data) {
+                if (data.result === 'error') {
+                    $containerCaptions.html(data.message);
+                } else {
+                    renderCaptions(data);
+                }
+            }
+        }).fail(showErrorFail);
+    }
 
     $(element).find('.js-header-tab').on('click', function(e) {
         var $currentTarget = $(e.currentTarget);
@@ -202,5 +296,13 @@ function StudioEditableXBlockMixin(runtime, element) {
         $currentTarget.addClass('current');
         $(element).find('.component-tab').addClass('is-inactive');
         $(element).find('.' + dataTab).removeClass('is-inactive');
+    });
+
+    $(element).find('[name = "stream_video"]').on('change', function(e) {
+        var $currentTarget = $(e.currentTarget);
+        var urlSmoothStreaming = $currentTarget.val();
+        getCaptions($currentTarget);
+        $(element).find('[data-field-name = "video_url"] input').val(urlSmoothStreaming)
+            .trigger('change');
     });
 }

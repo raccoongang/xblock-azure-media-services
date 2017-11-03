@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Copyright (c) Microsoft Corporation. All Rights Reserved.
 
@@ -6,7 +7,6 @@ Licensed under the MIT license. See LICENSE file on the project webpage for deta
 XBlock to allow for video playback from Azure Media Services
 Built using documentation from: http://amp.azure.net/libs/amp/latest/docs/index.html
 """
-
 import logging
 
 from django.conf import settings
@@ -18,7 +18,7 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from .media_services_management_client import MediaServicesManagementClient
 from .models import SettingsAzureOrganization
-from .utils import _
+from .utils import _, LANGUAGES
 
 
 log = logging.getLogger(__name__)
@@ -113,16 +113,15 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         Render a form for editing this XBlock.
         """
         settings_azure = self.get_settings_azure()
-        list_locators = []
+        list_stream_videos = []
 
         if settings_azure:
-            media_services = self.get_media_services(settings_azure)
-            list_locators = media_services.get_list_locators()
-
+            list_stream_videos = self.get_list_stream_videos(settings_azure)
         context = {
             'fields': [],
             'is_settings_azure': settings_azure is not None,
-            'list_locators': list_locators
+            'list_stream_videos': list_stream_videos,
+            'languages': LANGUAGES
         }
         fragment = Fragment()
         # Build a list of all the fields that can be edited:
@@ -251,3 +250,52 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
     def get_media_services(self, settings_azure):
         return MediaServicesManagementClient(settings_azure)
+
+    def get_list_stream_videos(self, settings_azure):
+        media_services = self.get_media_services(settings_azure)
+        locators = media_services.get_list_locators_on_demand_origin()
+        for locator in locators:
+            files = media_services.get_files_for_asset(locator.get('AssetId'))
+            yield self.get_info_stream_video(files, locator)
+
+    def get_info_stream_video(self, files, locator):
+        name_file = ''
+        for file in files:
+            if file.get('MimeType', '') == 'application/octet-stream' and file.get('Name', '').endswith('.ism'):
+                name_file = file['Name'].encode('utf-8')
+                break
+        return {
+            'url_smooth_streaming': '{}{}/manifest'.format(locator.get('Path'), name_file),
+            'name_file': name_file,
+            'asset_id': locator.get('AssetId')
+        }
+
+    @XBlock.json_handler
+    def get_captions(self, data, suffix=''):
+        asset_id = data.get('asset_id')
+        settings_azure = self.get_settings_azure()
+        media_services = self.get_media_services(settings_azure)
+        locator = media_services.get_locator_sas_for_asset(asset_id)
+        if locator:
+            files = media_services.get_files_for_asset(asset_id)
+            return self.get_info_captions(locator, files)
+
+        return {'result': 'error',
+                'message': _("To be able to use captions/transcripts auto-fetching, "
+                             "AMS Asset should be published properly "
+                             "(in addition to 'streaming' locator a 'progressive' "
+                             "locator must be created as well).")}
+
+    def get_info_captions(self, locator, files):
+        data = []
+        for file in files:
+            if file.get('Name', '').endswith('.vtt'):
+                name_file = file['Name'].encode('utf-8')
+                path = locator['Path']
+                download_url = '/{}?'.format(name_file).join(path.split('?'))
+                data.append({
+                    'download_url': download_url,
+                    'name_file': name_file,
+                })
+
+        return data
