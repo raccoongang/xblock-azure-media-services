@@ -201,8 +201,11 @@ body .wrapper .xblock-ams .tabs-wrapper {
 body .xblock-ams .tabs-wrapper .wrapper-comp-settings {
     display: flex;
     height: 100%;
+    width: 100%;
 }
-
+body .xblock-ams .wrapper-comp-settings .list-input.settings-list {
+    width: 100%;
+}
 body .xblock-ams .left-side,body .xblock-ams .right-side {
     flex: 0 0 50%;
     padding: 20px;
