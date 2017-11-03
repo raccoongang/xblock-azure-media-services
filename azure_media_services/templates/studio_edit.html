@@ -124,15 +124,49 @@
           </div>
 
           <div class="component-tab is-inactive tab-advanced">
+            {% if is_settings_azure %}
             <div class="wrapper-comp-settings">
               {% trans 'Videos list' %}
               <ul>
-                {% for locator in list_locators %}
-                <li>{{ forloop.counter }}. {{ locator.Path }}</li>
+                {% for stream_video in list_stream_videos %}
+                <li>
+                  <input id="radio-stream-video-{{ forloop.counter }}"
+                         type="radio" name="stream_video"
+                         value="{{ stream_video.url_smooth_streaming }}"
+                         data-asset-id="{{ stream_video.asset_id }}"
+                  />
+                  <label for="radio-stream-video-{{ forloop.counter }}">
+                    {{ stream_video.name_file }} {{ stream_video.url_smooth_streaming }}
+                  </label>
+                </li>
                 {% endfor %}
               </ul>
+              <div>
+              {% trans 'Captions/transcript)' %}
+                <ul class="js-container-сaptions">
+                  {% blocktrans %}
+                  Captions/transcripts will be fetched automatically (if any available) for the selected video.
+                  {% endblocktrans %}
+                </ul>
+                <div class="js-tempate-lang hidden">
+                  <select name="language">
+                    {% for key, label in languages %}
+                    <option value="{{ key }}" data-label="{{ labell }}">{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
+          {% else %}
+              {% blocktrans %}
+              You are using AMS xBlock in basic functionality mode.
+              In order to use advanced features
+              (e.g. videos and captions/transcripts auto-fetching from Azure Media Service)
+              Azure API Auth profile for current course Organization should be configured.
+              This can be performed within OpenEdx LMS admin site.
+              {% endblocktrans %}
+          {% endif %}
         </div>
       </section>
     </div>

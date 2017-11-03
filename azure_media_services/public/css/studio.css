@@ -193,3 +193,7 @@ body .wrapper .xblock-ams .tabs-wrapper {
     height: 450px;
     overflow-y: auto;
 }
+
+.xblock-ams .hidden {
+    display: none;
+}
