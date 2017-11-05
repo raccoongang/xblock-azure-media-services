@@ -291,10 +291,10 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
     def get_info_captions(self, locator, files):
         data = []
+        path = locator.get('Path').split(':', 1)[-1]
         for file in files:
             if file.get('Name', '').endswith('.vtt'):
                 name_file = file['Name'].encode('utf-8')
-                path = locator.get('Path').split(':', 1)[-1]
                 download_url = '/{}?'.format(name_file).join(path.split('?'))
                 data.append({
                     'download_url': download_url,

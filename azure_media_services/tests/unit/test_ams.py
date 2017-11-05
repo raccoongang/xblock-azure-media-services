@@ -1,10 +1,10 @@
+import json
 import unittest
 
 from azure_media_services import AMSXBlock
-from azure_media_services.media_services_management_client import MediaServicesManagementClient
+from azure_media_services.utils import LANGUAGES
 
 import mock
-from requests import HTTPError
 
 from xblock.field_data import DictFieldData
 
@@ -55,6 +55,7 @@ class AMSXBlockTests(unittest.TestCase):
         self.assertEqual(context['is_settings_azure'], False)
         self.assertEqual(context['list_stream_videos'], [])
         self.assertEqual(len(context['fields']), 9)
+        self.assertEqual(context['languages'], LANGUAGES)
 
         frag.add_javascript.assert_called_once_with('static/js/studio_edit.js')
         frag.add_css.assert_called_once_with("public/css/studio.css")
@@ -113,98 +114,115 @@ class AMSXBlockTests(unittest.TestCase):
     def test_get_media_services(self, media_services_management_client):
         block = self.make_one()
         media_services = block.get_media_services({})
-        media_services_management_client.assert_called_once()
+        media_services_management_client.assert_called_once_with({})
         self.assertEqual(media_services, media_services_management_client())
 
+    @mock.patch('azure_media_services.ams.AMSXBlock.get_media_services', return_value=mock.Mock(
+        get_list_locators_on_demand_origin=mock.Mock(return_value=[{'AssetId': 'asset_id'}]),
+        get_files_for_asset=mock.Mock(return_value=['file1', 'file2'])
+    ))
+    @mock.patch('azure_media_services.AMSXBlock.get_info_stream_video', return_value='info_stream_video')
+    def test_get_list_stream_videos(self, get_info_stream_video, media_services):
+        block = self.make_one()
+        list_stream_videos = list(block.get_list_stream_videos({}))
 
-class MediaServicesManagementClientTests(unittest.TestCase):
+        media_services.assert_called_once_with({})
+        media_services().get_list_locators_on_demand_origin.assert_called_once_with()
+        media_services().get_files_for_asset.assert_called_once_with('asset_id')
+        get_info_stream_video.assert_called_once_with(['file1', 'file2'], {'AssetId': 'asset_id'})
+        self.assertEqual(list_stream_videos, ['info_stream_video'])
 
-    @mock.patch('azure_media_services.media_services_management_client.ServicePrincipalCredentials')
-    def make_one(self, service_principal_credentials):
-        parameters = {
-            'client_id': 'client_id',
-            'secret': 'client_secret',
-            'tenant': 'tenant',
-            'resource': 'https://rest.media.azure.net',
-            'rest_api_endpoint': 'https://rest_api_endpoint/api/'
+    def test_get_info_stream_video(self):
+        block = self.make_one()
+        files = [
+            {
+                "Name": "fileNameIsmc.ismc",
+                "MimeType": "application/octet-stream"
+            },
+            {
+                "Name": "fileNameIsm.ism",
+                "MimeType": "application/octet-stream"
+            },
+            {
+                "Name": "fileName_320x180_320.mp4",
+                "MimeType": "video/mp4"
+            }]
+        locator = {
+            "Path": "http://account.streaming.mediaservices.windows.net/locator_id/",
+            "AssetId": "asset_id"
         }
-        media_services = MediaServicesManagementClient(parameters)
-        media_services.credentials = mock.Mock(token={'token_type': 'token_type', 'access_token': 'access_token'})
-        return media_services
-
-    @mock.patch('azure_media_services.media_services_management_client.MediaServicesManagementClient.get_headers',
-                return_value={})
-    @mock.patch('azure_media_services.media_services_management_client.requests.get',
-                return_value=mock.Mock(status_code=400, raise_for_status=mock.Mock(side_effect=HTTPError)))
-    def raise_for_status(self, requests_get, headers, func, func_args=None):
-        media_services = self.make_one()
-        with self.assertRaises(HTTPError):
-            if func_args:
-                getattr(media_services, func)(func_args)
-            else:
-                getattr(media_services, func)()
-
-    def test_get_headers(self):
-        media_services = self.make_one()
-        headers = media_services.get_headers()
-        expected_headers = {
-            'Content-Type': 'application/json',
-            'DataServiceVersion': '1.0',
-            'MaxDataServiceVersion': '3.0',
-            'Accept': 'application/json',
-            'Accept-Charset': 'UTF-8',
-            'x-ms-version': '2.15',
-            'Host': 'rest_api_endpoint',
-            'Authorization': 'token_type access_token'
+        info_stream_video = block.get_info_stream_video(files, locator)
+        expected_info_stream_video = {
+            'url_smooth_streaming': '//account.streaming.mediaservices.windows.net/locator_id/fileNameIsm.ism/manifest',
+            'name_file': 'fileNameIsm.ism',
+            'asset_id': 'asset_id',
         }
-        self.assertEqual(headers, expected_headers)
 
-    @mock.patch('azure_media_services.media_services_management_client.MediaServicesManagementClient.get_headers',
-                return_value={})
-    @mock.patch('azure_media_services.media_services_management_client.requests.get',
-                return_value=mock.Mock(status_code=200,
-                                       json=mock.Mock(return_value={'value': ['locator1', 'locator2']})))
-    def test_get_list_locators_on_demand_origin(self, requests_get, headers):
-        media_services = self.make_one()
-        locators = media_services.get_list_locators_on_demand_origin()
-        requests_get.assert_called_once_with('https://rest_api_endpoint/api/Locators?$filter=Type eq 2', headers={})
-        self.assertEqual(locators, ['locator1', 'locator2'])
+        self.assertDictEqual(info_stream_video, expected_info_stream_video)
 
-    def test_raise_for_status_get_list_locators_on_demand_origin(self):
-        self.raise_for_status(func='get_list_locators_on_demand_origin')
+    @mock.patch('azure_media_services.AMSXBlock.get_settings_azure', return_value={'settings_azure': 'settings_azure'})
+    @mock.patch('azure_media_services.AMSXBlock.get_media_services', return_value=mock.Mock(
+        get_locator_sas_for_asset=mock.Mock(return_value='locator'),
+        get_files_for_asset=mock.Mock(return_value=['file1', 'file2'])
+    ))
+    @mock.patch('azure_media_services.AMSXBlock.get_info_captions', return_value=['info_caption'])
+    def test_get_captions(self, get_info_captions, get_media_services, get_settings_azure):
+        block = self.make_one()
+        captions = block.get_captions(mock.Mock(method="POST", body=json.dumps({'asset_id': 'asset_id'})))
 
-    @mock.patch('azure_media_services.media_services_management_client.MediaServicesManagementClient.get_headers',
-                return_value={})
-    @mock.patch('azure_media_services.media_services_management_client.requests.get',
-                return_value=mock.Mock(status_code=200,
-                                       json=mock.Mock(return_value={'value': ['locator']})))
-    def test_get_locator_sas_for_asset(self, requests_get, headers):
-        media_services = self.make_one()
-        asset_id = 'asset_id'
-        locator = media_services.get_locator_sas_for_asset(asset_id)
-        requests_get.assert_called_once_with(
-            "https://rest_api_endpoint/api/Assets('{}')/Locators?$filter=Type eq 1".format(asset_id),
-            headers={}
-        )
-        self.assertEqual(locator, 'locator')
+        get_settings_azure.assert_called_once_with()
+        get_media_services.assert_called_once_with({'settings_azure': 'settings_azure'})
+        media_services = get_media_services()
+        media_services.get_locator_sas_for_asset.assert_called_once_with('asset_id')
+        media_services.get_files_for_asset.assert_called_once_with('asset_id')
+        get_info_captions.assert_called_once_with('locator', ['file1', 'file2'])
+        self.assertEqual(captions.json, ['info_caption'])
 
-    def test_raise_for_status_get_locator_sas_for_asset(self):
-        self.raise_for_status(func='get_locator_sas_for_asset', func_args='asset_id')
+    @mock.patch('azure_media_services.AMSXBlock.get_settings_azure', return_value={'settings_azure': 'settings_azure'})
+    @mock.patch('azure_media_services.AMSXBlock.get_media_services', return_value=mock.Mock(
+        get_locator_sas_for_asset=mock.Mock(return_value=None)
+    ))
+    def test_get_captions_when_locator_does_not_exist(self, get_media_services, get_settings_azure):
+        block = self.make_one()
+        captions = block.get_captions(mock.Mock(method="POST", body=json.dumps({'asset_id': 'asset_id'})))
 
-    @mock.patch('azure_media_services.media_services_management_client.MediaServicesManagementClient.get_headers',
-                return_value={})
-    @mock.patch('azure_media_services.media_services_management_client.requests.get',
-                return_value=mock.Mock(status_code=200,
-                                       json=mock.Mock(return_value={'value': ['file1', 'file2']})))
-    def test_get_files_for_asset(self, requests_get, headers):
-        media_services = self.make_one()
-        asset_id = 'asset_id'
-        files = media_services.get_files_for_asset(asset_id)
-        requests_get.assert_called_once_with(
-            "https://rest_api_endpoint/api/Assets('{}')/Files".format(asset_id),
-            headers={}
-        )
-        self.assertEqual(files, ['file1', 'file2'])
+        get_settings_azure.assert_called_once_with()
+        get_media_services.assert_called_once_with({'settings_azure': 'settings_azure'})
+        media_services = get_media_services()
+        media_services.get_locator_sas_for_asset.assert_called_once_with('asset_id')
+        expected_error_message = {
+            'result': 'error',
+            'message': "To be able to use captions/transcripts auto-fetching, "
+                       "AMS Asset should be published properly "
+                       "(in addition to 'streaming' locator a 'progressive' "
+                       "locator must be created as well)."
+        }
+        self.assertEqual(captions.json, expected_error_message)
 
-    def test_raise_for_status_get_files_for_asset(self):
-        self.raise_for_status(func='get_files_for_asset', func_args='asset_id')
+    def test_get_info_captions(self):
+        block = self.make_one()
+        files = [
+            {
+                "Name": "caption1.vtt",
+            },
+            {
+                "Name": "caption2.vtt",
+            },
+            {
+                "Name": "fileName_320x180_320.mp4",
+            }]
+        locator = {
+            "Path": "https://storage.blob.core.windows.net/asset-id?sv=2015-07-08&sr=c&si=si"
+        }
+        info_captions = block.get_info_captions(locator, files)
+
+        expected_info_captions = [
+            {
+                'download_url': '//storage.blob.core.windows.net/asset-id/caption1.vtt?sv=2015-07-08&sr=c&si=si',
+                'name_file': 'caption1.vtt'
+            },
+            {
+                'download_url': '//storage.blob.core.windows.net/asset-id/caption2.vtt?sv=2015-07-08&sr=c&si=si',
+                'name_file': 'caption2.vtt'
+            }]
+        self.assertEqual(info_captions, expected_info_captions)
