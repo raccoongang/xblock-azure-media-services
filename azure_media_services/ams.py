@@ -10,6 +10,7 @@ Built using documentation from: http://amp.azure.net/libs/amp/latest/docs/index.
 import logging
 
 from django.conf import settings
+import requests
 
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean
@@ -213,19 +214,6 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
                 new_class = higher_class
         return new_class
 
-    @XBlock.json_handler
-    def publish_event(self, data, suffix=''):
-        try:
-            event_type = data.pop('event_type')
-        except KeyError:
-            return {'result': 'error', 'message': 'Missing event_type in JSON data'}
-
-        data['video_url'] = self.video_url
-        data['user_id'] = self.scope_ids.user_id
-
-        self.runtime.publish(self, event_type, data)
-        return {'result': 'success'}
-
     def get_settings_azure(self):
         parameters = None
         settings_azure = SettingsAzureOrganization.objects.filter(organization__short_name=self.location.org).first()
@@ -273,6 +261,21 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             'asset_id': locator.get('AssetId')
         }
 
+    def get_info_captions(self, locator, files):
+        data = []
+        path = locator.get('Path').split(':', 1)[-1]
+        for file in files:
+            if file.get('Name', '').endswith('.vtt'):
+                name_file = file['Name'].encode('utf-8')
+                download_url = '/{}?'.format(name_file).join(path.split('?'))
+                data.append({
+                    'download_url': download_url,
+                    'name_file': name_file,
+                })
+
+        return data
+
+    # Xblock handlers:
     @XBlock.json_handler
     def get_captions(self, data, suffix=''):
         asset_id = data.get('asset_id')
@@ -289,16 +292,48 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
                              "(in addition to 'streaming' locator a 'progressive' "
                              "locator must be created as well).")}
 
-    def get_info_captions(self, locator, files):
-        data = []
-        path = locator.get('Path').split(':', 1)[-1]
-        for file in files:
-            if file.get('Name', '').endswith('.vtt'):
-                name_file = file['Name'].encode('utf-8')
-                download_url = '/{}?'.format(name_file).join(path.split('?'))
-                data.append({
-                    'download_url': download_url,
-                    'name_file': name_file,
-                })
+    @XBlock.json_handler
+    def publish_event(self, data, suffix=''):
+        try:
+            event_type = data.pop('event_type')
+        except KeyError:
+            return {'result': 'error', 'message': _('Missing event_type in JSON data')}
 
-        return data
+        data['video_url'] = self.video_url
+        data['user_id'] = self.scope_ids.user_id
+
+        self.runtime.publish(self, event_type, data)
+        return {'result': 'success'}
+
+    @XBlock.json_handler
+    def fetch_transcript(self, data, _suffix=''):
+        """
+        Xblock handler to perform actual transcript content fetching.
+
+        :param data: transcript language code and transcript URL
+        :param _suffix: not using
+        :return: transcript's text content
+        """
+        handler_response = {'result': 'error', 'message': _('Missing required transcript data: `src` and `srcLang`')}
+
+        try:
+            transcript_url = data.pop('srcUrl')
+            transcript_lang = data.pop('srcLang')
+        except KeyError:
+            return handler_response
+
+        failure_message = "Transcript fetching failure: language [{}]".format(transcript_lang)
+        try:
+            response = requests.get(transcript_url)
+            return {
+                'result': 'success',
+                'content': response.content
+            }
+        except IOError:
+            log.exception(failure_message)
+            handler_response['message'] = _(failure_message)
+            return handler_response
+        except (ValueError, KeyError, TypeError, AttributeError):
+            log.exception("Can't get content of the fetched transcript: language [{}]".format(transcript_lang))
+            handler_response['message'] = _(failure_message)
+            return handler_response
