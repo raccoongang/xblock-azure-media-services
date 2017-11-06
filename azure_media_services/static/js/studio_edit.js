@@ -14,7 +14,7 @@ function StudioEditableXBlockMixin(runtime, element) {
     // Studio includes a copy of tinyMCE and its jQuery plugin
     var tinyMceAvailable = (typeof $.fn.tinymce !== 'undefined');
     var datepickerAvailable = (typeof $.fn.datepicker !== 'undefined'); // Studio includes datepicker jQuery plugin
-    var handlerUrlGetCaptions = runtime.handlerUrl(element, 'get_captions');
+    var handlerUrlGetCaptionsAndDownloadVideoUrl = runtime.handlerUrl(element, 'get_captions_and_download_video_url');
     var $containerCaptions = $(element).find('.js-container-captions');
 
     $(element).find('.field-data-control').each(function() {
@@ -269,23 +269,43 @@ function StudioEditableXBlockMixin(runtime, element) {
     }
 
     /**
-     * getCaptions
-     * @param $ev
+     * setDownloadVideoUrl
+     * @param downloadVideoUrl
      */
-    function getCaptions($ev) {
-        var assetId = $ev.data('asset-id');
+    function setDownloadVideoUrl(downloadVideoUrl) {
+        $(element).find('[data-field-name = "download_url"] input').val(downloadVideoUrl)
+            .trigger('change');
+    }
+
+    /**
+     * resetInputFields download_url and captions
+     */
+    function resetInputFields() {
+        $(element).find('[data-field-name = "download_url"] input').val('')
+            .trigger('change');
+        $(element).find('[data-field-name = "captions"] textarea').val(JSON.stringify([]))
+            .trigger('change');
+    }
+
+    /**
+     * getCaptionsAndDownloadVideoUrl
+     * @param assetId
+     */
+    function getCaptionsAndDownloadVideoUrl(assetId) {
         $containerCaptions.html('<div class="loader-wrapper"><span class="loader"><svg class="icon icon-spinner11">' +
             '<use xlink:href="#icon-spinner11"></use></svg></span></div class="loader-wrapper">');
         $.ajax({
             type: 'POST',
-            url: handlerUrlGetCaptions,
+            url: handlerUrlGetCaptionsAndDownloadVideoUrl,
             data: JSON.stringify({asset_id: assetId}),
             dataType: 'json',
             success: function(data) {
                 if (data.result === 'error') {
                     $containerCaptions.html(data.message);
+                    resetInputFields();
                 } else {
-                    renderCaptions(data);
+                    renderCaptions(data.captions);
+                    setDownloadVideoUrl(data.download_video_url);
                 }
             }
         }).fail(showErrorFail);
@@ -304,7 +324,8 @@ function StudioEditableXBlockMixin(runtime, element) {
     $(element).find('[name = "stream_video"]').on('change', function(e) {
         var $currentTarget = $(e.currentTarget);
         var urlSmoothStreaming = $currentTarget.val();
-        getCaptions($currentTarget);
+        var assetId = $currentTarget.data('asset-id');
+        getCaptionsAndDownloadVideoUrl(assetId);
         $(element).find('[data-field-name = "video_url"] input').val(urlSmoothStreaming)
             .trigger('change');
     });
