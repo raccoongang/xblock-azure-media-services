@@ -5,7 +5,7 @@ from azure_media_services import AMSXBlock
 from azure_media_services.utils import LANGUAGES
 
 import mock
-
+import requests
 from xblock.field_data import DictFieldData
 
 
@@ -226,3 +226,52 @@ class AMSXBlockTests(unittest.TestCase):
                 'name_file': 'caption2.vtt'
             }]
         self.assertEqual(info_captions, expected_info_captions)
+
+    @mock.patch('azure_media_services.ams.requests.get', return_value=mock.Mock(
+        status_code=200, content='test_transcript_content'
+    ))
+    def test_fetch_transcript_success(self, request_get_mock):
+        block = self.make_one()
+        test_data = {'srcUrl': 'test_transcript_url', 'srcLang': 'testTranscriptLangCode'}
+        handler_request_mock = mock.Mock(method="POST", body=json.dumps(test_data))
+
+        handler_response = block.fetch_transcript(handler_request_mock)
+
+        request_get_mock.assert_called_once_with(test_data['srcUrl'])
+        self.assertEqual(handler_response.json, {'result': 'success', 'content': 'test_transcript_content'})
+
+    @mock.patch('azure_media_services.ams.log.exception')
+    @mock.patch(
+        'azure_media_services.ams.requests.get', return_value=mock.Mock(status_code=400),
+        side_effect=requests.RequestException()
+    )
+    def test_fetch_transcript_ioerror(self, request_get_mock, logger_mock):
+        block = self.make_one()
+        test_data = {'srcUrl': 'test_transcript_url', 'srcLang': 'testTranscriptLangCode'}
+        handler_request_mock = mock.Mock(method="POST", body=json.dumps(test_data))
+        test_failure_message = "Transcript fetching failure: language [{}]".format('testTranscriptLangCode')
+
+        handler_response = block.fetch_transcript(handler_request_mock)
+
+        request_get_mock.assert_called_once_with(test_data['srcUrl'])
+        logger_mock.assert_called_once_with(test_failure_message)
+        self.assertEqual(handler_response.json, {'result': 'error', 'message': test_failure_message})
+
+    @mock.patch('azure_media_services.ams.log.exception')
+    @mock.patch(
+        'azure_media_services.ams.requests.get', return_value=mock.Mock(status_code=200), side_effect=ValueError()
+    )
+    def test_fetch_transcript_other_parse_error(self, request_get_mock, logger_mock):
+        block = self.make_one()
+        test_data = {'srcUrl': 'test_transcript_url', 'srcLang': 'testTranscriptLangCode'}
+        handler_request_mock = mock.Mock(method="POST", body=json.dumps(test_data))
+        test_failure_message = "Transcript fetching failure: language [{}]".format('testTranscriptLangCode')
+        test_log_message = "Can't get content of the fetched transcript: language [{}]".format(
+            'testTranscriptLangCode'
+        )
+
+        handler_response = block.fetch_transcript(handler_request_mock)
+
+        request_get_mock.assert_called_once_with(test_data['srcUrl'])
+        logger_mock.assert_called_once_with(test_log_message)
+        self.assertEqual(handler_response.json, {'result': 'error', 'message': test_failure_message})
