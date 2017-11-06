@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All Rights Reserved.
 // Licensed under the MIT license. See LICENSE file on the project webpage for details.
 
-/* global WebVTT _ amp */
+/* global WebVTT _ amp gettext runtime */
 
 
 var events = {
@@ -15,6 +15,32 @@ var events = {
     captionsShown: 'edx.video.closed_captions.shown',
     captionsHidden: 'edx.video.closed_captions.hidden'
 };
+
+
+/**
+ * Build actual URI based on current page protocol context.
+ * @param src: source URI part w/o leading protocol
+ */
+function buildUrl(src) {
+    'use strict';
+    return window.location.protocol + src;
+}
+
+
+/**
+ * xBlock handler (frontend part).
+ * @param handlerUrl
+ * @param data
+ */
+function handleData(handlerUrl, data) {
+    'use strict';
+    return $.ajax({
+        type: 'POST',
+        url: handlerUrl,
+        dataType: 'json',
+        data: JSON.stringify(data)
+    });
+}
 
 
 /**
@@ -182,8 +208,8 @@ function AzureMediaServicesBlock(runtime, container) {
         var subtitleEls;
         var languageName;
         var eventPostUrl;
+        var fetchTranscriptUrl;
         var timeHandler;
-        var xhr;
 
         // Fyi, container contains all of player.html so it is an ancestor of $vidAndTranscript
         //      $vidAndTranscript is an ancestor of BOTH $vidParent AND $transcriptElement
@@ -199,6 +225,7 @@ function AzureMediaServicesBlock(runtime, container) {
 
         // Add event handlers
         eventPostUrl = runtime.handlerUrl(container, 'publish_event');
+        fetchTranscriptUrl = runtime.handlerUrl(container, 'fetch_transcript');
 
         // This will be updated as the video plays.
         timeHandler = null;
@@ -257,15 +284,18 @@ function AzureMediaServicesBlock(runtime, container) {
                             reportEvent = events.transcriptsHidden;
                         } else {
                             if ($transcriptElement.length) {
-                                xhr = new XMLHttpRequest();
-                                xhr.open('GET', window.location.protocol + $target.data('src'));
-                                xhr.onreadystatechange = function() {
-                                    if (xhr.readyState === 4) {
-                                        // Parse transcript.
-                                        transcriptCues = initTranscript(self, xhr.responseText, $transcriptElement);
+                                handleData(fetchTranscriptUrl, {
+                                    srcUrl: buildUrl($target.data('src')),
+                                    srcLang: $target.data('srclang')
+                                }).success(function(responseData) {
+                                    if (responseData.result === 'error') {
+                                        $transcriptElement.text(responseData.message);
+                                    } else {
+                                        transcriptCues = initTranscript(
+                                            self, responseData.content, $transcriptElement
+                                        );
                                     }
-                                };
-                                xhr.send();
+                                });
                             }
                             $vidAndTranscript.removeClass('closed');
                             reportEvent = events.transcriptShown;

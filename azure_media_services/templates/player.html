@@ -46,7 +46,8 @@
 
                       {% for transcript in captions %}
                       <li class="vjs-menu-item" role="button" aria-live="polite" tabindex="0" aria-selected="false"
-                          data-src="{{ transcript.src }}">
+                          data-srclang="{{ transcript.srclang }}" data-src="{{ transcript.src }}"
+                      >
                         {{ transcript.label }}
                       </li>
                       {% endfor %}
