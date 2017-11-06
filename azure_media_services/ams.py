@@ -264,24 +264,26 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         name_file = ''
         for file in files:
             if file.get('MimeType', '') == 'application/octet-stream' and file.get('Name', '').endswith('.ism'):
-                name_file = file['Name'].encode('utf-8')
+                name_file = file['Name']
                 break
         path = locator.get('Path').split(':', 1)[-1]
         return {
-            'url_smooth_streaming': '{}{}/manifest'.format(path, name_file),
+            'url_smooth_streaming': u'{}{}/manifest'.format(path, name_file),
             'name_file': name_file,
             'asset_id': locator.get('AssetId')
         }
 
     @XBlock.json_handler
-    def get_captions(self, data, suffix=''):
+    def get_captions_and_download_video_url(self, data, suffix=''):
         asset_id = data.get('asset_id')
         settings_azure = self.get_settings_azure()
         media_services = self.get_media_services(settings_azure)
         locator = media_services.get_locator_sas_for_asset(asset_id)
         if locator:
             files = media_services.get_files_for_asset(asset_id)
-            return self.get_info_captions(locator, files)
+            captions, download_video_url = self.get_captions_info_and_download_video_url(locator, files)
+            return {'captions': captions,
+                    'download_video_url': download_video_url}
 
         return {'result': 'error',
                 'message': _("To be able to use captions/transcripts auto-fetching, "
@@ -289,16 +291,26 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
                              "(in addition to 'streaming' locator a 'progressive' "
                              "locator must be created as well).")}
 
-    def get_info_captions(self, locator, files):
-        data = []
+    def get_captions_info_and_download_video_url(self, locator, files):
+        captions = []
+        download_video_url = ''
+        file_size = 0
         path = locator.get('Path').split(':', 1)[-1]
         for file in files:
+            try:
+                content_file_size = int(file.get('ContentFileSize', 0))
+            except ValueError:
+                content_file_size = 0
             if file.get('Name', '').endswith('.vtt'):
-                name_file = file['Name'].encode('utf-8')
-                download_url = '/{}?'.format(name_file).join(path.split('?'))
-                data.append({
+                name_file = file['Name']
+                download_url = u'/{}?'.format(name_file).join(path.split('?'))
+                captions.append({
                     'download_url': download_url,
                     'name_file': name_file,
                 })
+            elif file.get('Name', '').endswith('.mp4') and content_file_size > file_size:
+                name_file = file['Name']
+                file_size = content_file_size
+                download_video_url = u'/{}?'.format(name_file).join(path.split('?'))
 
-        return data
+        return captions, download_video_url
