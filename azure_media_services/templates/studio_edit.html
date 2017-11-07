@@ -16,12 +16,12 @@
           <ul class="editor-tabs">
             <li class="inner_tab_wrap">
               <a href="#" class="tab current js-header-tab" data-tab="tab-basic">
-                {% trans "Setting" %}
+                {% trans "Settings" %}
               </a>
             </li>
             <li class="inner_tab_wrap">
               <a href="#" class="tab js-header-tab" data-tab="tab-advanced">
-                {% trans "Manage Video" %}
+                {% trans "Management" %}
               </a>
             </li>
           </ul>
@@ -134,7 +134,7 @@
             {% if is_settings_azure %}
             <div class="wrapper-comp-settings">
                 <div class="left-side">
-                    {% trans 'Videos list' %}
+                    <span class="section-header">{% trans 'AMS available media:' %}</span>
                       <ul>
                         {% for stream_video in list_stream_videos %}
                         <li>
@@ -144,23 +144,33 @@
                                  data-asset-id="{{ stream_video.asset_id }}"
                           />
                           <label for="radio-stream-video-{{ forloop.counter }}">
-                            {{ stream_video.name_file }} {{ stream_video.url_smooth_streaming }}
+                            <span class="media-file-name">{{ stream_video.name_file }}</span>
+                            <div class="media-source">
+                              {{ stream_video.url_smooth_streaming }}
+                              <hr/>
+                            </div>
                           </label>
                         </li>
                         {% endfor %}
                       </ul>
                 </div>
               <div class="right-side">
-              {% trans 'Captions/transcripts' %}
+                <span class="section-header">{% trans 'Available captions/transcripts:' %}</span>
                 <ul class="loader-holder js-container-captions">
+                  <span class="ams-info">
                   {% blocktrans %}
                   Captions/transcripts will be fetched automatically (if any available) for the selected video.
                   {% endblocktrans %}
+                  </span>
                 </ul>
                 <div class="js-tempate-lang hidden">
                   <select name="language">
                     {% for key, label in languages %}
-                    <option value="{{ key }}" data-label="{{ labell }}">{{ label }}</option>
+                    <option value="{{ key }}"
+                            data-label="{{ label }}"
+                            {% ifequal label 'English' %} selected="selected"{% endifequal %}
+                    >
+                      {{ label }}</option>
                     {% endfor %}
                   </select>
                 </div>

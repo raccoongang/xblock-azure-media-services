@@ -301,7 +301,7 @@ function StudioEditableXBlockMixin(runtime, element) {
             dataType: 'json',
             success: function(data) {
                 if (data.result === 'error') {
-                    $containerCaptions.html(data.message);
+                    $containerCaptions.html('<span class="ams-info">' + data.message + '</span>');
                     resetInputFields();
                 } else {
                     renderCaptions(data.captions);

@@ -72,7 +72,7 @@
         {% if transcripts_enabled %}
         <li style="list-style-type: none;" class="video-tracks video-download-button">
           Download transcripts:
-          <div id="myDropdown" class="dropdown-content">
+          <div class="dropdown-content">
             {% for transcript in captions %}
             <a href="{{ transcript.src }}" download title="{{ transcript.label }}">{{ transcript.label }}</a>
             {% endfor %}

@@ -187,6 +187,7 @@ body .wrapper .edit-xblock-modal .modal-content {
     height: auto !important;
     overflow-y: hidden !important;
 }
+
 body .wrapper .xblock-ams .tabs-wrapper {
     padding-top: 0;
     position: relative;
@@ -203,10 +204,12 @@ body .xblock-ams .tabs-wrapper .wrapper-comp-settings {
     height: 100%;
     width: 100%;
 }
+
 body .xblock-ams .wrapper-comp-settings .list-input.settings-list {
     width: 100%;
 }
-body .xblock-ams .left-side,body .xblock-ams .right-side {
+
+body .xblock-ams .left-side, body .xblock-ams .right-side {
     flex: 0 0 50%;
     padding: 20px;
     -webkit-box-sizing: border-box;
@@ -214,21 +217,25 @@ body .xblock-ams .left-side,body .xblock-ams .right-side {
     box-sizing: border-box;
     max-width: 50%;
 }
+
 body .xblock-ams .left-side {
     border-right: 1px solid #e5e5e5;
 }
+
 body .xblock-ams .component-tab {
     height: 100%;
     display: flex;
     align-items: center;
 }
 
-body .xblock-ams .left-side ul,.right-side ul {
+body .xblock-ams .left-side ul, .right-side ul {
     margin-top: 15px;
 }
-body .xblock-ams .left-side ul li,.right-side ul li {
+
+body .xblock-ams .left-side ul li, .right-side ul li {
     margin-bottom: 7px;
 }
+
 body .xblock-ams .some-message {
     padding: 20px;
     box-sizing: border-box;
@@ -236,7 +243,8 @@ body .xblock-ams .some-message {
     margin: 10px;
     border-radius: 12px;
 }
-body .xblock-ams .left-side ul label,.right-side ul label{
+
+body .xblock-ams .left-side ul label, .right-side ul label {
     margin: 0 5px;
     word-break: break-all;
 }
@@ -251,29 +259,32 @@ body .xblock-ams .loader-wrapper {
     justify-content: center;
 
 }
+
 body .xblock-ams .loader {
     animation: rotate 3s infinite;
 }
+
 body .xblock-ams .loader svg {
     height: 20px;
     width: 20px;
 }
+
 body .xblock-ams .select-holder {
     width: 100%;
     display: flex;
     align-items: flex-start;
 }
+
 body .xblock-ams .wrap-input-captions,
 body .xblock-ams .loader-holder select {
     flex: 1 1 50%;
 }
-@media screen and (max-width: 1200px){
+
+@media screen and (max-width: 1200px) {
     body .xblock-ams .loader-holder select {
         max-width: 30%;
     }
 }
-
-
 
 @keyframes rotate {
     0% {
@@ -286,4 +297,22 @@ body .xblock-ams .loader-holder select {
         transform: rotate(360deg);
     }
 
+}
+
+.section-header {
+    font-weight: 400;
+    font-size: large;
+}
+
+.ams-info {
+    font-style: italic;
+    font-weight: 300;
+}
+
+.media-file-name {
+    font-weight: bold;
+}
+
+.media-source {
+    font-weight: 100;
 }
