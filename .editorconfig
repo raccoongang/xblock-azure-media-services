@@ -14,5 +14,9 @@ insert_final_newline = true
 trim_trailing_whitespace = true
 
 
+[*.py]
+line_length = 120
+
+
 [*.{yml,md}]
 indent_size = 2

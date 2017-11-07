@@ -1,12 +1,12 @@
 import json
 import unittest
 
-from azure_media_services import AMSXBlock
-from azure_media_services.utils import LANGUAGES
-
 import mock
 import requests
 from xblock.field_data import DictFieldData
+
+from azure_media_services import AMSXBlock
+from azure_media_services.utils import LANGUAGES
 
 
 class AMSXBlockTests(unittest.TestCase):

@@ -1,9 +1,9 @@
 import unittest
 
-from azure_media_services.media_services_management_client import MediaServicesManagementClient
-
 import mock
 from requests import HTTPError
+
+from azure_media_services.media_services_management_client import MediaServicesManagementClient
 
 
 class MediaServicesManagementClientTests(unittest.TestCase):
