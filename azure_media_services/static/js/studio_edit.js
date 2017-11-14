@@ -302,7 +302,6 @@ function StudioEditableXBlockMixin(runtime, element) {
             success: function(data) {
                 if (data.result === 'error') {
                     $containerCaptions.html('<span class="ams-info">' + data.message + '</span>');
-                    resetInputFields();
                 } else {
                     renderCaptions(data.captions);
                     setDownloadVideoUrl(data.download_video_url);
@@ -325,6 +324,7 @@ function StudioEditableXBlockMixin(runtime, element) {
         var $currentTarget = $(e.currentTarget);
         var urlSmoothStreaming = $currentTarget.val();
         var assetId = $currentTarget.data('asset-id');
+        resetInputFields();
         getCaptionsAndDownloadVideoUrl(assetId);
         $(element).find('[data-field-name = "video_url"] input').val(urlSmoothStreaming)
             .trigger('change');
