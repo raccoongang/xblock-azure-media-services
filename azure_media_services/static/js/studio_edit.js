@@ -14,7 +14,7 @@ function StudioEditableXBlockMixin(runtime, element) {
     // Studio includes a copy of tinyMCE and its jQuery plugin
     var tinyMceAvailable = (typeof $.fn.tinymce !== 'undefined');
     var datepickerAvailable = (typeof $.fn.datepicker !== 'undefined'); // Studio includes datepicker jQuery plugin
-    var handlerUrlGetCaptionsAndDownloadVideoUrl = runtime.handlerUrl(element, 'get_captions_and_download_video_url');
+    var handlerUrlGetCaptionsAndVideoInfo = runtime.handlerUrl(element, 'get_captions_and_video_info');
     var $containerCaptions = $(element).find('.js-container-captions');
 
     $(element).find('.field-data-control').each(function() {
@@ -220,12 +220,11 @@ function StudioEditableXBlockMixin(runtime, element) {
     function setCaptionsField() {
         var captions = [];
         $containerCaptions.find('[name = "captions"]:checked').each(function() {
-            var $selectLang = $(this).parents('li').find('option:selected');
             var caption = {
                 kind: 'subtitles',
                 src: $(this).val(),
-                srclang: $selectLang.val(),
-                label: $selectLang.text()
+                srclang: $(this).data('srclang'),
+                label: $(this).data('label')
             };
             captions.push(caption);
         });
@@ -237,12 +236,7 @@ function StudioEditableXBlockMixin(runtime, element) {
      * setOnChangeCaptions
      */
     function setOnChangeCaptions() {
-        $containerCaptions.find('[name = "captions"]').on('change', function() {
-            setCaptionsField();
-        });
-        $containerCaptions.find('[name = "language"]:visible').on('change', function() {
-            setCaptionsField();
-        });
+        $containerCaptions.find('[name = "captions"]').on('change', setCaptionsField);
     }
 
     /**
@@ -251,17 +245,16 @@ function StudioEditableXBlockMixin(runtime, element) {
      */
     function renderCaptions(data) {
         var i, html;
-        var $selectLang = $(element).find('.js-tempate-lang');
         $containerCaptions.empty();
         if (data.length === 0) {
             $containerCaptions.text(gettext('No captions/transcripts available for selected video.'));
         } else {
             for (i = 0; i < data.length; i++) {
                 html = '<li class="select-holder"><div class="wrap-input-captions"><input id="checkbox-captions-' + i +
-                        '" type="checkbox" name="captions" value="' +
-                        data[i].download_url + '"/><label for="checkbox-captions-' + i + '">' +
-                        data[i].name_file + '</label></div>' +
-                        $selectLang.clone().removeClass('hidden').html() + '</li>';
+                        '" type="checkbox" name="captions" value="' + data[i].download_url +
+                        '" data-srclang="' + data[i].language + '" data-label="' + data[i].language_title +
+                        '"/><label for="checkbox-captions-' + i + '">' + data[i].file_name +
+                        ' (' + data[i].language + ')</label></div></li>';
                 $containerCaptions.append(html);
             }
             setOnChangeCaptions();
@@ -269,43 +262,43 @@ function StudioEditableXBlockMixin(runtime, element) {
     }
 
     /**
-     * setDownloadVideoUrl
-     * @param downloadVideoUrl
+     * setVideoInfo
+     * @param videInfo
      */
-    function setDownloadVideoUrl(downloadVideoUrl) {
-        $(element).find('[data-field-name = "download_url"] input').val(downloadVideoUrl)
+    function setVideoInfo(videInfo) {
+        $(element).find('[data-field-name = "download_url"] input').val(videInfo.download_video_url)
+            .trigger('change');
+        $(element).find('[data-field-name = "video_url"] input').val(videInfo.smooth_streaming_url)
             .trigger('change');
     }
 
     /**
-     * resetInputFields download_url and captions
+     * resetCaptionsField
      */
-    function resetInputFields() {
-        $(element).find('[data-field-name = "download_url"] input').val('')
-            .trigger('change');
+    function resetCaptionsField() {
         $(element).find('[data-field-name = "captions"] textarea').val(JSON.stringify([]))
             .trigger('change');
     }
 
     /**
-     * getCaptionsAndDownloadVideoUrl
-     * @param assetId
+     * getCaptionsAndVideoInfo
+     * @param edxVideoID
      */
-    function getCaptionsAndDownloadVideoUrl(assetId) {
+    function getCaptionsAndVideoInfo(edxVideoID) {
         $containerCaptions.html('<div class="loader-wrapper"><span class="loader"><svg class="icon icon-spinner11">' +
             '<use xlink:href="#icon-spinner11"></use></svg></span></div class="loader-wrapper">');
         $.ajax({
             type: 'POST',
-            url: handlerUrlGetCaptionsAndDownloadVideoUrl,
-            data: JSON.stringify({asset_id: assetId}),
+            url: handlerUrlGetCaptionsAndVideoInfo,
+            data: JSON.stringify({edx_video_id: edxVideoID}),
             dataType: 'json',
             success: function(data) {
-                if (data.result === 'error') {
-                    $containerCaptions.html('<span class="ams-info">' + data.message + '</span>');
+                if (data.error_message !== '') {
+                    $containerCaptions.html('<span class="ams-info">' + data.error_message + '</span>');
                 } else {
                     renderCaptions(data.captions);
-                    setDownloadVideoUrl(data.download_video_url);
                 }
+                setVideoInfo(data.video_info);
             }
         }).fail(showErrorFail);
     }
@@ -322,11 +315,8 @@ function StudioEditableXBlockMixin(runtime, element) {
 
     $(element).find('[name = "stream_video"]').on('change', function(e) {
         var $currentTarget = $(e.currentTarget);
-        var urlSmoothStreaming = $currentTarget.val();
-        var assetId = $currentTarget.data('asset-id');
-        resetInputFields();
-        getCaptionsAndDownloadVideoUrl(assetId);
-        $(element).find('[data-field-name = "video_url"] input').val(urlSmoothStreaming)
-            .trigger('change');
+        var edxVideoID = $currentTarget.val();
+        resetCaptionsField();
+        getCaptionsAndVideoInfo(edxVideoID);
     });
 }

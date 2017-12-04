@@ -9,7 +9,11 @@ Built using documentation from: http://amp.azure.net/libs/amp/latest/docs/index.
 """
 import logging
 
-from django.conf import settings
+from azure_video_pipeline.media_service import LocatorTypes
+from azure_video_pipeline.utils import get_azure_config, get_media_service_client
+from django.shortcuts import get_object_or_404
+from edxval.models import Video
+from openedx.core.djangoapps.lang_pref.api import all_languages
 import requests
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean
@@ -17,9 +21,7 @@ from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
-from .media_services_management_client import MediaServicesManagementClient
-from .models import SettingsAzureOrganization
-from .utils import _, LANGUAGES
+from .utils import _
 
 
 log = logging.getLogger(__name__)
@@ -114,16 +116,15 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Render a form for editing this XBlock.
         """
-        settings_azure = self.get_settings_azure()
+        azure_config = get_azure_config(self.location.org)
         list_stream_videos = []
 
-        if settings_azure:
-            list_stream_videos = self.get_list_stream_videos(settings_azure)
+        if azure_config:
+            list_stream_videos = self.get_list_stream_videos()
         context = {
             'fields': [],
-            'is_settings_azure': settings_azure is not None,
+            'has_azure_config': azure_config is not None,
             'list_stream_videos': list_stream_videos,
-            'languages': LANGUAGES
         }
         fragment = Fragment()
         # Build a list of all the fields that can be edited:
@@ -213,109 +214,92 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
                 new_class = higher_class
         return new_class
 
-    def get_settings_azure(self):
-        parameters = None
-        settings_azure = SettingsAzureOrganization.objects.filter(organization__short_name=self.location.org).first()
-        if settings_azure:
-            parameters = {
-                'client_id': settings_azure.client_id,
-                'secret': settings_azure.client_secret,
-                'tenant': settings_azure.tenant,
-                'resource': self.RESOURCE,
-                'rest_api_endpoint': settings_azure.rest_api_endpoint
-            }
-        elif (settings.FEATURES.get('AZURE_CLIENT_ID') and
-              settings.FEATURES.get('AZURE_CLIENT_SECRET') and
-              settings.FEATURES.get('AZURE_TENANT') and
-              settings.FEATURES.get('AZURE_REST_API_ENDPOINT')):
-            parameters = {
-                'client_id': settings.FEATURES.get('AZURE_CLIENT_ID'),
-                'secret': settings.FEATURES.get('AZURE_CLIENT_SECRET'),
-                'tenant': settings.FEATURES.get('AZURE_TENANT'),
-                'resource': self.RESOURCE,
-                'rest_api_endpoint': settings.FEATURES.get('AZURE_REST_API_ENDPOINT')
-            }
-        return parameters
+    def get_list_stream_videos(self):
+        return Video.objects.filter(
+            courses__course_id=self.location.course_key,
+            courses__is_hidden=False,
+            status="file_complete"
+        )
 
-    def get_media_services(self, settings_azure):
-        return MediaServicesManagementClient(settings_azure)
+    def get_video_info(self, video, path_locator_on_demand, path_locator_sas, asset_files):
+        download_video_url = ''
 
-    def get_list_stream_videos(self, settings_azure):
-        media_services = self.get_media_services(settings_azure)
-        locators = media_services.get_list_locators_on_demand_origin()
-        for locator in locators:
-            files = media_services.get_files_for_asset(locator.get('AssetId'))
-            yield self.get_info_stream_video(files, locator)
+        if path_locator_sas and asset_files:
+            file_size = 0
+            for asset_file in asset_files:
+                try:
+                    content_file_size = int(asset_file.get('ContentFileSize', 0))
+                except ValueError:
+                    content_file_size = 0
 
-    def get_info_stream_video(self, files, locator):
-        name_file = ''
-        for file in files:
-            if file.get('MimeType', '') == 'application/octet-stream' and file.get('Name', '').endswith('.ism'):
-                name_file = file['Name']
-                break
-        path = locator.get('Path').split(':', 1)[-1]
+                if asset_file.get('Name', '').endswith('.mp4') and content_file_size > file_size:
+                    name_file = asset_file['Name']
+                    file_size = content_file_size
+                    download_video_url = u'/{}?'.format(name_file).join(path_locator_sas.split('?'))
+
         return {
-            'url_smooth_streaming': u'{}{}/manifest'.format(path, name_file),
-            'name_file': name_file,
-            'asset_id': locator.get('AssetId')
+            'smooth_streaming_url': u'{}{}/manifest'.format(
+                path_locator_on_demand, video.client_video_id.replace('mp4', 'ism')
+            ) if path_locator_on_demand else '',
+            'download_video_url': download_video_url,
         }
 
-    def get_info_captions(self, locator, files):
+    def get_captions_info(self, video, path_locator_sas):
         data = []
-        path = locator.get('Path').split(':', 1)[-1]
-        for file in files:
-            if file.get('Name', '').endswith('.vtt'):
-                name_file = file['Name'].encode('utf-8')
-                download_url = '/{}?'.format(name_file).join(path.split('?'))
+        if path_locator_sas:
+            for subtitle in video.subtitles.all():
                 data.append({
-                    'download_url': download_url,
-                    'name_file': name_file,
+                    'download_url': '/{}?'.format(subtitle.content).join(path_locator_sas.split('?')),
+                    'file_name': subtitle.content,
+                    'language': subtitle.language,
+                    'language_title': dict(all_languages()).get(subtitle.language)
                 })
 
         return data
 
-    def get_captions_info_and_download_video_url(self, locator, files):
-        captions = []
-        download_video_url = ''
-        file_size = 0
-        path = locator.get('Path').split(':', 1)[-1]
-        for file in files:
-            try:
-                content_file_size = int(file.get('ContentFileSize', 0))
-            except ValueError:
-                content_file_size = 0
-            if file.get('Name', '').endswith('.vtt'):
-                name_file = file['Name']
-                download_url = u'/{}?'.format(name_file).join(path.split('?'))
-                captions.append({
-                    'download_url': download_url,
-                    'name_file': name_file,
-                })
-            elif file.get('Name', '').endswith('.mp4') and content_file_size > file_size:
-                name_file = file['Name']
-                file_size = content_file_size
-                download_video_url = u'/{}?'.format(name_file).join(path.split('?'))
-
-        return captions, download_video_url
+    def drop_http_or_https(self, url):
+        """
+        In order to avoid mixing HTTP/HTTPS which can cause some warnings to appear in some browsers.
+        """
+        return url.replace("https:", "").replace("http:", "")
 
     # Xblock handlers:
     @XBlock.json_handler
-    def get_captions_and_download_video_url(self, data, suffix=''):
-        asset_id = data.get('asset_id')
-        settings_azure = self.get_settings_azure()
-        media_services = self.get_media_services(settings_azure)
-        locator = media_services.get_locator_sas_for_asset(asset_id)
-        if locator:
-            files = media_services.get_files_for_asset(asset_id)
-            captions, download_video_url = self.get_captions_info_and_download_video_url(locator, files)
-            return {'captions': captions,
-                    'download_video_url': download_video_url}
+    def get_captions_and_video_info(self, data, suffix=''):
+        edx_video_id = data.get('edx_video_id')
+        video = get_object_or_404(Video, edx_video_id=edx_video_id)
+        media_service = get_media_service_client(self.location.org)
+        asset = media_service.get_input_asset_by_video_id(edx_video_id, 'ENCODED')
 
-        return {'result': 'error',
-                'message': _("To be able to use captions/transcripts auto-fetching, "
-                             "AMS Asset should be published properly "
-                             "(in addition to 'streaming' locator a 'progressive' "
-                             "locator must be created as well).")}
+        error_message = _("Target Video is no longer available on Azure or is corrupted in some way.")
+        captions = []
+        video_info = {}
+        asset_files = None
+
+        if asset:
+            locator_on_demand = media_service.get_asset_locator(asset['Id'], LocatorTypes.OnDemandOrigin)
+            locator_sas = media_service.get_asset_locator(asset['Id'], LocatorTypes.SAS)
+
+            if locator_on_demand:
+                error_message = ''
+                path_locator_on_demand = self.drop_http_or_https(locator_on_demand.get('Path'))
+                path_locator_sas = None
+
+                if locator_sas:
+                    path_locator_sas = self.drop_http_or_https(locator_sas.get('Path'))
+                    captions = self.get_captions_info(video, path_locator_sas)
+                    asset_files = media_service.get_asset_files(asset['Id'])
+                else:
+                    error_message = _("To be able to use captions/transcripts auto-fetching, "
+                                      "AMS Asset should be published properly "
+                                      "(in addition to 'streaming' locator a 'progressive' "
+                                      "locator must be created as well).")
+
+                video_info = self.get_video_info(video, path_locator_on_demand, path_locator_sas, asset_files)
+
+        return {'error_message': error_message,
+                'video_info': video_info,
+                'captions': captions}
 
     @XBlock.json_handler
     def publish_event(self, data, suffix=''):

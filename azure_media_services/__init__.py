@@ -11,7 +11,6 @@ if not settings.configured:
     settings.configure(
         INSTALLED_APPS=(
             'organizations',
-            'azure_media_services',
         ),
         FEATURES={}
     )

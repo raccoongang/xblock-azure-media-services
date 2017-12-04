@@ -131,49 +131,38 @@
           </div>
 
           <div class="component-tab is-inactive tab-advanced">
-            {% if is_settings_azure %}
+            {% if has_azure_config %}
             <div class="wrapper-comp-settings">
-                <div class="left-side">
-                    <span class="section-header">{% trans 'AMS available media:' %}</span>
-                      <ul>
-                        {% for stream_video in list_stream_videos %}
-                        <li>
-                          <input id="radio-stream-video-{{ forloop.counter }}"
-                                 type="radio" name="stream_video"
-                                 value="{{ stream_video.url_smooth_streaming }}"
-                                 data-asset-id="{{ stream_video.asset_id }}"
-                          />
-                          <label for="radio-stream-video-{{ forloop.counter }}">
-                            <span class="media-file-name">{{ stream_video.name_file }}</span>
-                            <div class="media-source">
-                              {{ stream_video.url_smooth_streaming }}
-                              <hr/>
-                            </div>
-                          </label>
-                        </li>
-                        {% endfor %}
-                      </ul>
-                </div>
+              <div class="left-side">
+                <div class="section-header">{% trans 'AMS available media:' %}</div>
+                <ul>
+                  {% for stream_video in list_stream_videos %}
+                  <li>
+                    <input id="radio-stream-video-{{ forloop.counter }}"
+                           type="radio" name="stream_video"
+                           value="{{ stream_video.edx_video_id }}"
+                    />
+                    <label for="radio-stream-video-{{ forloop.counter }}">
+                      <span class="media-file-name">{{ stream_video.client_video_id }}</span>
+                      <div class="media-source">
+                        ({{ stream_video.edx_video_id }})
+                      </div>
+                    </label>
+                  </li>
+                  <hr/>
+                  {% endfor %}
+                </ul>
+              </div>
+
               <div class="right-side">
                 <span class="section-header">{% trans 'Available captions/transcripts:' %}</span>
                 <ul class="loader-holder js-container-captions">
-                  <span class="ams-info">
+                  <div class="ams-info">
                   {% blocktrans %}
                   Captions/transcripts will be fetched automatically (if any available) for the selected video.
                   {% endblocktrans %}
-                  </span>
+                  </div>
                 </ul>
-                <div class="js-tempate-lang hidden">
-                  <select name="language">
-                    {% for key, label in languages %}
-                    <option value="{{ key }}"
-                            data-label="{{ label }}"
-                            {% ifequal label 'English' %} selected="selected"{% endifequal %}
-                    >
-                      {{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
               </div>
             </div>
           </div>
