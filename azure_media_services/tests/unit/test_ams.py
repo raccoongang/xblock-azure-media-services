@@ -58,16 +58,18 @@ class AMSXBlockTests(unittest.TestCase):
         frag.add_css.assert_called_once_with("public/css/studio.css")
         frag.initialize_js.assert_called_once_with("StudioEditableXBlockMixin")
 
-    @mock.patch('azure_media_services.ams.Video.objects.filter', return_value=['video1', 'video2'])
+    @mock.patch('azure_media_services.ams.Video.objects.filter', return_value=mock.Mock(order_by=mock.Mock(
+        return_value=['video1', 'video2'])))
     def test_get_list_stream_videos(self, video_filter):
 
         block = self.make_one()
-        list_stream_videos = list(block.get_list_stream_videos())
+        list_stream_videos = block.get_list_stream_videos()
         video_filter.assert_called_once_with(
             courses__course_id='course_key',
             courses__is_hidden=False,
             status="file_complete"
         )
+        video_filter().order_by.assert_called_once_with('-created', 'edx_video_id')
         self.assertEqual(list_stream_videos, ['video1', 'video2'])
 
     def test_get_video_info(self):

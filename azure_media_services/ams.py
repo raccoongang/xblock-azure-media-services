@@ -218,7 +218,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             courses__course_id=self.location.course_key,
             courses__is_hidden=False,
             status="file_complete"
-        )
+        ).order_by('-created', 'edx_video_id')
 
     def get_video_info(self, video, path_locator_on_demand, path_locator_sas, asset_files):
         download_video_url = ''
