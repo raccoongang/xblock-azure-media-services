@@ -11,7 +11,6 @@ import logging
 
 from azure_video_pipeline.media_service import LocatorTypes
 from azure_video_pipeline.utils import get_azure_config, get_media_service_client
-from django.shortcuts import get_object_or_404
 from edxval.models import Video
 from openedx.core.djangoapps.lang_pref.api import all_languages
 import requests
@@ -123,7 +122,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             list_stream_videos = self.get_list_stream_videos()
         context = {
             'fields': [],
-            'has_azure_config': azure_config is not None,
+            'has_azure_config': len(azure_config) != 0,
             'list_stream_videos': list_stream_videos,
         }
         fragment = Fragment()
@@ -224,7 +223,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
     def get_video_info(self, video, path_locator_on_demand, path_locator_sas, asset_files):
         download_video_url = ''
 
-        if path_locator_sas and asset_files:
+        if path_locator_sas:
             file_size = 0
             for asset_file in asset_files:
                 try:
@@ -267,9 +266,14 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
     @XBlock.json_handler
     def get_captions_and_video_info(self, data, suffix=''):
         edx_video_id = data.get('edx_video_id')
-        video = get_object_or_404(Video, edx_video_id=edx_video_id)
-        media_service = get_media_service_client(self.location.org)
-        asset = media_service.get_input_asset_by_video_id(edx_video_id, 'ENCODED')
+
+        try:
+            video = Video.objects.get(edx_video_id=edx_video_id)
+        except Video.DoesNotExist:
+            asset = None
+        else:
+            media_service = get_media_service_client(self.location.org)
+            asset = media_service.get_input_asset_by_video_id(edx_video_id, 'ENCODED')
 
         error_message = _("Target Video is no longer available on Azure or is corrupted in some way.")
         captions = []

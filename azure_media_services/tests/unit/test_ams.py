@@ -6,7 +6,6 @@ import requests
 from xblock.field_data import DictFieldData
 
 from azure_media_services import AMSXBlock
-from azure_media_services.utils import LANGUAGES
 
 
 class AMSXBlockTests(unittest.TestCase):
@@ -17,7 +16,7 @@ class AMSXBlockTests(unittest.TestCase):
         """
         field_data = DictFieldData(kw)
         block = AMSXBlock(mock.Mock(), field_data, mock.Mock())
-        block.location = mock.Mock(org='name_org')
+        block.location = mock.Mock(org='org_name', course_key='course_key')
         return block
 
     def test_default_fields_xblock(self):
@@ -32,222 +31,270 @@ class AMSXBlockTests(unittest.TestCase):
         self.assertEqual(block.transcripts_enabled, False)
         self.assertEqual(block.download_url, None)
 
-    @mock.patch('azure_media_services.AMSXBlock.get_media_services')
-    @mock.patch('azure_media_services.AMSXBlock.get_settings_azure', return_value=None)
+    @mock.patch('azure_media_services.ams.get_azure_config', return_value={})
     @mock.patch('azure_media_services.ams.loader.load_unicode', side_effect=('public/css/studio.css',
                                                                              'static/js/studio_edit.js'))
     @mock.patch('azure_media_services.ams.loader.render_django_template')
     @mock.patch('azure_media_services.ams.Fragment')
-    def test_studio_view(self, fragment, render_django_template, load_unicode, get_settings_azure, get_media_services):
+    def test_studio_view(self, fragment, render_django_template, load_unicode, get_azure_config):
         """
         Test studio view is displayed correctly.
         """
         block = self.make_one()
         frag = block.studio_view({})
 
-        get_media_services.assert_not_called()
+        get_azure_config.assert_called_once_with('org_name')
         render_django_template.assert_called_once()
 
         template_arg = render_django_template.call_args[0][0]
         self.assertEqual(template_arg, 'templates/studio_edit.html')
 
         context = render_django_template.call_args[0][1]
-        self.assertEqual(context['is_settings_azure'], False)
+        self.assertEqual(context['has_azure_config'], False)
         self.assertEqual(context['list_stream_videos'], [])
         self.assertEqual(len(context['fields']), 9)
-        self.assertEqual(context['languages'], LANGUAGES)
 
         frag.add_javascript.assert_called_once_with('static/js/studio_edit.js')
         frag.add_css.assert_called_once_with("public/css/studio.css")
         frag.initialize_js.assert_called_once_with("StudioEditableXBlockMixin")
 
-    def test_get_settings_azure_for_organization(self):
-        with mock.patch('azure_media_services.models.SettingsAzureOrganization.objects.filter',
-                        return_value=mock.Mock(first=mock.Mock(
-                            return_value=mock.Mock(organization='name_org',
-                                                   client_id='client_id',
-                                                   client_secret='client_secret',
-                                                   tenant='tenant',
-                                                   rest_api_endpoint='rest_api_endpoint')))):
-            block = self.make_one()
-            parameters = block.get_settings_azure()
+    @mock.patch('azure_media_services.ams.Video.objects.filter', return_value=['video1', 'video2'])
+    def test_get_list_stream_videos(self, video_filter):
 
-            expected_parameters = {
-                'client_id': 'client_id',
-                'secret': 'client_secret',
-                'tenant': 'tenant',
-                'resource': 'https://rest.media.azure.net',
-                'rest_api_endpoint': 'rest_api_endpoint'
-            }
-            self.assertEqual(parameters, expected_parameters)
-
-    def test_get_settings_azure_for_platform(self):
-        with mock.patch('azure_media_services.models.SettingsAzureOrganization.objects.filter',
-                        return_value=mock.Mock(first=mock.Mock(return_value=None))):
-            with mock.patch.dict('azure_media_services.ams.settings.FEATURES', {
-                'AZURE_CLIENT_ID': 'client_id',
-                'AZURE_CLIENT_SECRET': 'client_secret',
-                'AZURE_TENANT': 'tenant',
-                'AZURE_REST_API_ENDPOINT': 'rest_api_endpoint'
-            }):
-                block = self.make_one()
-                parameters = block.get_settings_azure()
-
-                expected_parameters = {
-                    'client_id': 'client_id',
-                    'secret': 'client_secret',
-                    'tenant': 'tenant',
-                    'resource': 'https://rest.media.azure.net',
-                    'rest_api_endpoint': 'rest_api_endpoint'
-                }
-                self.assertEqual(parameters, expected_parameters)
-
-    def test_when_not_set_settings_azure(self):
-        with mock.patch('azure_media_services.models.SettingsAzureOrganization.objects.filter',
-                        return_value=mock.Mock(first=mock.Mock(return_value=None))):
-            with mock.patch.dict('azure_media_services.ams.settings.FEATURES', {}):
-                block = self.make_one()
-                parameters = block.get_settings_azure()
-                self.assertEqual(parameters, None)
-
-    @mock.patch('azure_media_services.ams.MediaServicesManagementClient')
-    def test_get_media_services(self, media_services_management_client):
         block = self.make_one()
-        media_services = block.get_media_services({})
-        media_services_management_client.assert_called_once_with({})
-        self.assertEqual(media_services, media_services_management_client())
+        list_stream_videos = list(block.get_list_stream_videos())
+        video_filter.assert_called_once_with(
+            courses__course_id='course_key',
+            courses__is_hidden=False,
+            status="file_complete"
+        )
+        self.assertEqual(list_stream_videos, ['video1', 'video2'])
 
-    @mock.patch('azure_media_services.ams.AMSXBlock.get_media_services', return_value=mock.Mock(
-        get_list_locators_on_demand_origin=mock.Mock(return_value=[{'AssetId': 'asset_id'}]),
-        get_files_for_asset=mock.Mock(return_value=['file1', 'file2'])
-    ))
-    @mock.patch('azure_media_services.AMSXBlock.get_info_stream_video', return_value='info_stream_video')
-    def test_get_list_stream_videos(self, get_info_stream_video, media_services):
+    def test_get_video_info(self):
         block = self.make_one()
-        list_stream_videos = list(block.get_list_stream_videos({}))
 
-        media_services.assert_called_once_with({})
-        media_services().get_list_locators_on_demand_origin.assert_called_once_with()
-        media_services().get_files_for_asset.assert_called_once_with('asset_id')
-        get_info_stream_video.assert_called_once_with(['file1', 'file2'], {'AssetId': 'asset_id'})
-        self.assertEqual(list_stream_videos, ['info_stream_video'])
-
-    def test_get_info_stream_video(self):
-        block = self.make_one()
-        files = [
-            {
-                "Name": "fileNameIsmc.ismc",
-                "MimeType": "application/octet-stream"
-            },
+        video = mock.Mock(client_video_id='video_name.mp4')
+        path_locator_on_demand = '//ma.streaming.mediaservices.windows.net/locator_id/'
+        path_locator_sas = '//sa.blob.core.windows.net/asset-locator_id?sv=2012-02-12&sr=c'
+        asset_files = [
             {
                 "Name": "fileNameIsm.ism",
-                "MimeType": "application/octet-stream"
+                "MimeType": "application/octet-stream",
+                "ContentFileSize": 10
             },
             {
-                "Name": "fileName_320x180_320.mp4",
-                "MimeType": "video/mp4"
-            }]
-        locator = {
-            "Path": "http://account.streaming.mediaservices.windows.net/locator_id/",
-            "AssetId": "asset_id"
-        }
-        info_stream_video = block.get_info_stream_video(files, locator)
-        expected_info_stream_video = {
-            'url_smooth_streaming': '//account.streaming.mediaservices.windows.net/locator_id/fileNameIsm.ism/manifest',
-            'name_file': 'fileNameIsm.ism',
-            'asset_id': 'asset_id',
-        }
-
-        self.assertDictEqual(info_stream_video, expected_info_stream_video)
-
-    @mock.patch('azure_media_services.AMSXBlock.get_settings_azure', return_value={'settings_azure': 'settings_azure'})
-    @mock.patch('azure_media_services.AMSXBlock.get_media_services', return_value=mock.Mock(
-        get_locator_sas_for_asset=mock.Mock(return_value='locator'),
-        get_files_for_asset=mock.Mock(return_value=['file1', 'file2'])
-    ))
-    @mock.patch('azure_media_services.AMSXBlock.get_captions_info_and_download_video_url',
-                return_value=(['info_caption'], 'download_video_url'))
-    def test_get_captions_and_download_video_url(self, get_captions_info_and_download_video_url,
-                                                 get_media_services, get_settings_azure):
-        block = self.make_one()
-        captions_and_download_video_url = block.get_captions_and_download_video_url(
-            mock.Mock(method="POST", body=json.dumps({'asset_id': 'asset_id'}))
-        )
-
-        get_settings_azure.assert_called_once_with()
-        get_media_services.assert_called_once_with({'settings_azure': 'settings_azure'})
-        media_services = get_media_services()
-        media_services.get_locator_sas_for_asset.assert_called_once_with('asset_id')
-        media_services.get_files_for_asset.assert_called_once_with('asset_id')
-        get_captions_info_and_download_video_url.assert_called_once_with('locator', ['file1', 'file2'])
-        expected_captions_and_download_video_url = {
-            'captions': ['info_caption'],
-            'download_video_url': 'download_video_url'
-        }
-        self.assertEqual(captions_and_download_video_url.json, expected_captions_and_download_video_url)
-
-    @mock.patch('azure_media_services.AMSXBlock.get_settings_azure', return_value={'settings_azure': 'settings_azure'})
-    @mock.patch('azure_media_services.AMSXBlock.get_media_services', return_value=mock.Mock(
-        get_locator_sas_for_asset=mock.Mock(return_value=None)
-    ))
-    def test_get_captions_and_download_video_url_when_locator_does_not_exist(self, get_media_services,
-                                                                             get_settings_azure):
-        block = self.make_one()
-        captions = block.get_captions_and_download_video_url(mock.Mock(method="POST",
-                                                                       body=json.dumps({'asset_id': 'asset_id'})))
-
-        get_settings_azure.assert_called_once_with()
-        get_media_services.assert_called_once_with({'settings_azure': 'settings_azure'})
-        media_services = get_media_services()
-        media_services.get_locator_sas_for_asset.assert_called_once_with('asset_id')
-        expected_error_message = {
-            'result': 'error',
-            'message': "To be able to use captions/transcripts auto-fetching, "
-                       "AMS Asset should be published properly "
-                       "(in addition to 'streaming' locator a 'progressive' "
-                       "locator must be created as well)."
-        }
-        self.assertEqual(captions.json, expected_error_message)
-
-    def test_get_captions_info_and_download_video_url(self):
-        block = self.make_one()
-        files = [
-            {
-                "Name": "caption1.vtt",
+                "Name": "fileName_1.mp4",
+                "MimeType": "video/mp4",
+                "ContentFileSize": 10
             },
             {
-                "Name": "caption2.vtt",
-            },
-            {
-                "Name": "fileName_1000.mp4",
-                "ContentFileSize": "1000"
-            },
-            {
-                "Name": "fileName_1001.mp4",
-                "ContentFileSize": "1001"
-            },
-            {
-                "Name": "fileName.mp4",
-                "ContentFileSize": "size"
+                "Name": "fileName_2.mp4",
+                "MimeType": "video/mp4",
+                "ContentFileSize": 20
             }
         ]
-        locator = {
-            "Path": "https://storage.blob.core.windows.net/asset-id?sv=2015-07-08&sr=c&si=si"
-        }
-        info_captions = block.get_captions_info_and_download_video_url(locator, files)
 
-        expected_info_captions = ([
+        video_info = block.get_video_info(video, path_locator_on_demand, path_locator_sas, asset_files)
+
+        expected_video_info = {
+            'smooth_streaming_url': '//ma.streaming.mediaservices.windows.net/locator_id/video_name.ism/manifest',
+            'download_video_url': '//sa.blob.core.windows.net/asset-locator_id/fileName_2.mp4?sv=2012-02-12&sr=c'
+        }
+
+        self.assertEqual(video_info, expected_video_info)
+
+    def test_get_video_info_if_path_locator_on_demand_is_not_defined(self):
+        block = self.make_one()
+        video = mock.Mock(client_video_id='video_name.mp4')
+        path_locator_on_demand = ''
+        path_locator_sas = '//sa.blob.core.windows.net/asset-locator_id?sv=2012-02-12&sr=c'
+        asset_files = [
             {
-                'download_url': '//storage.blob.core.windows.net/asset-id/caption1.vtt?sv=2015-07-08&sr=c&si=si',
-                'name_file': 'caption1.vtt'
+                "Name": "fileNameIsm.ism",
+                "MimeType": "application/octet-stream",
+                "ContentFileSize": 10
             },
             {
-                'download_url': '//storage.blob.core.windows.net/asset-id/caption2.vtt?sv=2015-07-08&sr=c&si=si',
-                'name_file': 'caption2.vtt'
-            }],
-            '//storage.blob.core.windows.net/asset-id/fileName_1001.mp4?sv=2015-07-08&sr=c&si=si'
+                "Name": "fileName_1.mp4",
+                "MimeType": "video/mp4",
+                "ContentFileSize": 10
+            },
+            {
+                "Name": "fileName_2.mp4",
+                "MimeType": "video/mp4",
+                "ContentFileSize": 20
+            }
+        ]
+
+        video_info = block.get_video_info(video, path_locator_on_demand, path_locator_sas, asset_files)
+
+        expected_video_info = {
+            'smooth_streaming_url': '',
+            'download_video_url': '//sa.blob.core.windows.net/asset-locator_id/fileName_2.mp4?sv=2012-02-12&sr=c'
+        }
+
+        self.assertEqual(video_info, expected_video_info)
+
+    def test_get_video_info_if_path_locator_sas_is_not_defined(self):
+        block = self.make_one()
+
+        video = mock.Mock(client_video_id='video_name.mp4')
+        path_locator_on_demand = '//ma.streaming.mediaservices.windows.net/locator_id/'
+        path_locator_sas = ''
+        asset_files = [
+            {
+                "Name": "fileNameIsm.ism",
+                "MimeType": "application/octet-stream",
+                "ContentFileSize": 10
+            },
+            {
+                "Name": "fileName_1.mp4",
+                "MimeType": "video/mp4",
+                "ContentFileSize": 10
+            },
+            {
+                "Name": "fileName_2.mp4",
+                "MimeType": "video/mp4",
+                "ContentFileSize": 20
+            }
+        ]
+
+        video_info = block.get_video_info(video, path_locator_on_demand, path_locator_sas, asset_files)
+
+        expected_video_info = {
+            'smooth_streaming_url': '//ma.streaming.mediaservices.windows.net/locator_id/video_name.ism/manifest',
+            'download_video_url': ''
+        }
+
+        self.assertEqual(video_info, expected_video_info)
+
+    @mock.patch('azure_media_services.ams.all_languages', return_value=(('en', 'English'), ('fr', 'French')))
+    def test_get_captions_info(self, all_languages):
+        block = self.make_one()
+        path_locator_sas = '//sa.blob.core.windows.net/asset-locator_id?sv=2012-02-12&sr=c'
+        video = mock.Mock(subtitles=mock.Mock(all=mock.Mock(
+            return_value=[
+                mock.Mock(content='file_name_en.mp4', language='en'),
+                mock.Mock(content='file_name_fr.mp4', language='fr')
+            ]
+        )))
+
+        captions_info = block.get_captions_info(video, path_locator_sas)
+
+        expected_data = [
+            {
+                'download_url': '//sa.blob.core.windows.net/asset-locator_id/file_name_en.mp4?sv=2012-02-12&sr=c',
+                'file_name': 'file_name_en.mp4',
+                'language': 'en',
+                'language_title': 'English'
+            },
+            {
+                'download_url': '//sa.blob.core.windows.net/asset-locator_id/file_name_fr.mp4?sv=2012-02-12&sr=c',
+                'file_name': 'file_name_fr.mp4',
+                'language': 'fr',
+                'language_title': 'French'
+            }
+        ]
+        self.assertEqual(captions_info, expected_data)
+
+    def test_drop_http_or_https(self):
+        block = self.make_one()
+
+        url = block.drop_http_or_https('http://ma.streaming.mediaservices.windows.net/locator_id/')
+        self.assertEqual(url, '//ma.streaming.mediaservices.windows.net/locator_id/')
+
+        url = block.drop_http_or_https('https://ma.streaming.mediaservices.windows.net/locator_id/')
+        self.assertEqual(url, '//ma.streaming.mediaservices.windows.net/locator_id/')
+
+    @mock.patch('azure_media_services.ams.LocatorTypes')
+    @mock.patch('azure_media_services.ams.AMSXBlock.get_video_info', return_value={
+        'smooth_streaming_url': 'smooth_streaming_url',
+        'download_video_url': 'download_video_url'
+    })
+    @mock.patch('azure_media_services.ams.AMSXBlock.get_captions_info', return_value=[
+        {
+            'download_url': 'download_url',
+            'file_name': 'file_name_en.mp4',
+            'language': 'en',
+            'language_title': 'English'
+        }
+    ])
+    @mock.patch('azure_media_services.ams.get_media_service_client', return_value=mock.Mock(
+        get_input_asset_by_video_id=mock.Mock(return_value={'Id': 'asset_id'}),
+        get_asset_locator=mock.Mock(side_effect=({'Path': 'path_locator_on_demand'}, {'Path': 'path_locator_sas'})),
+        get_asset_files=mock.Mock(return_value=['asset_file_1', 'asset_file_2'])
+    ))
+    @mock.patch('azure_media_services.ams.Video.objects.get', return_value='video_object')
+    def test_get_captions_and_video_info(self, video_get, get_media_service_client, get_captions_info,
+                                         get_video_info, locator_types):
+        locator_types.OnDemandOrigin = 'OnDemandOrigin'
+        locator_types.SAS = 'SAS'
+        block = self.make_one()
+
+        captions_and_video_info = block.get_captions_and_video_info(
+            mock.Mock(method="POST", body=json.dumps({'edx_video_id': 'edx_video_id'}))
         )
-        self.assertEqual(info_captions, expected_info_captions)
+
+        video_get.assert_called_once_with(edx_video_id='edx_video_id')
+        get_media_service_client.assert_called_once_with('org_name')
+
+        media_service_client = get_media_service_client()
+        media_service_client.get_input_asset_by_video_id.assert_called_once_with('edx_video_id', 'ENCODED')
+        self.assertEqual(
+            media_service_client.get_asset_locator.call_args_list,
+            [mock.call('asset_id', 'OnDemandOrigin'), mock.call('asset_id', 'SAS')]
+        )
+        get_captions_info.assert_called_once_with('video_object', 'path_locator_sas')
+        media_service_client.get_asset_files.assert_called_once_with('asset_id')
+        get_video_info.assert_called_once_with(
+            'video_object',
+            'path_locator_on_demand',
+            'path_locator_sas',
+            ['asset_file_1', 'asset_file_2']
+        )
+
+        expected_data = {
+            'error_message': '',
+            'video_info': {
+                'smooth_streaming_url': 'smooth_streaming_url',
+                'download_video_url': 'download_video_url'
+            },
+            'captions': [
+                {
+                    'download_url': 'download_url',
+                    'file_name': 'file_name_en.mp4',
+                    'language': 'en',
+                    'language_title': 'English'
+                }
+            ]
+        }
+
+        self.assertEqual(captions_and_video_info.json, expected_data)
+
+    @mock.patch('azure_media_services.ams.get_media_service_client', return_value=mock.Mock(
+        get_input_asset_by_video_id=mock.Mock(return_value=[]),
+    ))
+    @mock.patch('azure_media_services.ams.Video.objects.get', return_value='video_object')
+    def test_get_captions_and_video_info_if_is_no_asset(self, video_get, get_media_service_client):
+        block = self.make_one()
+
+        captions_and_video_info = block.get_captions_and_video_info(
+            mock.Mock(method="POST", body=json.dumps({'edx_video_id': 'edx_video_id'}))
+        )
+
+        video_get.assert_called_once_with(edx_video_id='edx_video_id')
+        get_media_service_client.assert_called_once_with('org_name')
+
+        media_service_client = get_media_service_client()
+        media_service_client.get_input_asset_by_video_id.assert_called_once_with('edx_video_id', 'ENCODED')
+
+        expected_data = {
+            'error_message': 'Target Video is no longer available on Azure or is corrupted in some way.',
+            'video_info': {},
+            'captions': []
+        }
+
+        self.assertEqual(captions_and_video_info.json, expected_data)
 
     @mock.patch('azure_media_services.ams.requests.get', return_value=mock.Mock(
         status_code=200, content='test_transcript_content'
