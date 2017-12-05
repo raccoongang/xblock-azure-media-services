@@ -9,8 +9,6 @@ Built using documentation from: http://amp.azure.net/libs/amp/latest/docs/index.
 """
 import logging
 
-from azure_video_pipeline.media_service import LocatorTypes
-from azure_video_pipeline.utils import get_azure_config, get_media_service_client
 from edxval.models import Video
 from openedx.core.djangoapps.lang_pref.api import all_languages
 import requests
@@ -21,6 +19,14 @@ from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from .utils import _
+
+APP_AZURE_VIDEO_PIPLINE = True
+
+try:
+    from azure_video_pipeline.media_service import LocatorTypes
+    from azure_video_pipeline.utils import get_azure_config, get_media_service_client
+except ImportError:
+    APP_AZURE_VIDEO_PIPLINE = False
 
 
 log = logging.getLogger(__name__)
@@ -115,7 +121,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         """
         Render a form for editing this XBlock.
         """
-        azure_config = get_azure_config(self.location.org)
+        azure_config = get_azure_config(self.location.org) if APP_AZURE_VIDEO_PIPLINE else {}
         list_stream_videos = []
 
         if azure_config:
