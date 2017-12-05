@@ -249,6 +249,14 @@ body .xblock-ams .left-side ul label, .right-side ul label {
     word-break: break-all;
 }
 
+body .xblock-ams .left-side ul label {
+    display: inline-block;
+}
+
+body .xblock-ams .left-side ul input {
+    vertical-align: top;
+}
+
 body .xblock-ams .loader-holder {
     height: 100%;
 }
