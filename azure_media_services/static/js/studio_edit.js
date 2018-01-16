@@ -6,9 +6,8 @@
  * @param element
  * @constructor
  */
-function StudioEditableXBlockMixin(runtime, element) {
+function StudioEditableXBlockMixin(runtime, element, initJson) {
     'use strict';
-
     var fields = [],
         studioSubmit;
     // Studio includes a copy of tinyMCE and its jQuery plugin
@@ -219,12 +218,13 @@ function StudioEditableXBlockMixin(runtime, element) {
      */
     function setCaptionsField() {
         var captions = [];
-        $containerCaptions.find('[name = "captions"]:checked').each(function() {
+        $containerCaptions.find('[name = "captions"]').each(function(i, inputEl) {
             var caption = {
                 kind: 'subtitles',
                 src: $(this).val(),
                 srclang: $(this).data('srclang'),
-                label: $(this).data('label')
+                label: $(this).data('label'),
+                enabled: inputEl.checked
             };
             captions.push(caption);
         });
@@ -252,9 +252,9 @@ function StudioEditableXBlockMixin(runtime, element) {
             for (i = 0; i < data.length; i++) {
                 html = '<li class="select-holder"><div class="wrap-input-captions"><input id="checkbox-captions-' + i +
                         '" type="checkbox" name="captions" value="' + data[i].download_url +
-                        '" data-srclang="' + data[i].language + '" data-label="' + data[i].language_title +
-                        '"/><label for="checkbox-captions-' + i + '">' + data[i].file_name +
-                        ' (' + data[i].language + ')</label></div></li>';
+                        '" data-srclang="' + data[i].language + '" data-label="' + data[i].language_title + '"' +
+                        (data[i].enabled ? ' checked' : '') + '/><label for="checkbox-captions-' + i + '">' +
+                        data[i].language_title + ' (' + data[i].language + ')</label></div></li>';
                 $containerCaptions.append(html);
             }
             setOnChangeCaptions();
@@ -269,6 +269,15 @@ function StudioEditableXBlockMixin(runtime, element) {
         $(element).find('[data-field-name = "download_url"] input').val(videInfo.download_video_url)
             .trigger('change');
         $(element).find('[data-field-name = "video_url"] input').val(videInfo.smooth_streaming_url)
+            .trigger('change');
+    }
+
+    /**
+     * Set current video ID special field which is used to keep Management tab state.
+     * @param edxVideoID
+     */
+    function setVideoId(edxVideoID) {
+        $(element).find('[data-field-name = "video_id"] input').val(edxVideoID)
             .trigger('change');
     }
 
@@ -311,6 +320,7 @@ function StudioEditableXBlockMixin(runtime, element) {
         $currentTarget.addClass('current');
         $(element).find('.component-tab').addClass('is-inactive');
         $(element).find('.' + dataTab).removeClass('is-inactive');
+        renderCaptions(initJson.captions);
     });
 
     $(element).find('[name = "stream_video"]').on('change', function(e) {
@@ -318,5 +328,6 @@ function StudioEditableXBlockMixin(runtime, element) {
         var edxVideoID = $currentTarget.val();
         resetCaptionsField();
         getCaptionsAndVideoInfo(edxVideoID);
+        setVideoId(edxVideoID);
     });
 }

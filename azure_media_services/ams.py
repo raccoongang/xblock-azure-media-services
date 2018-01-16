@@ -12,9 +12,9 @@ import logging
 from django.core.exceptions import ImproperlyConfigured
 from edxval.models import Video
 import requests
+from web_fragments.fragment import Fragment
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean
-from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
@@ -62,6 +62,15 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         ),
         default="",
         scope=Scope.settings
+    )
+    video_id = String(
+        display_name=_("EDX Video ID"),
+        help=_(
+            "Not editable. EDX Video ID from Video Uploads page"
+        ),
+        default="",
+        scope=Scope.settings,
+        resettable_editor=False
     )
     # Ultimately this should come via some secure means, but this is OK for a PoC
     verification_key = String(
@@ -115,7 +124,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
     # These are what become visible in the Mixin editor
     editable_fields = (
-        'display_name', 'video_url', 'verification_key', 'protection_type',
+        'display_name', 'video_url', 'video_id', 'verification_key', 'protection_type',
         'token_issuer', 'token_scope', 'captions', 'transcripts_enabled', 'download_url',
     )
 
@@ -135,6 +144,7 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             'fields': [],
             'has_azure_config': len(azure_config) != 0,
             'list_stream_videos': list_stream_videos,
+            'current_video_id': self.video_id
         }
         fragment = Fragment()
         # Build a list of all the fields that can be edited:
@@ -148,10 +158,20 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
             field_info = self._make_field_info(field_name, field)
             if field_info is not None:
                 context["fields"].append(field_info)
+        # Due to frontend captions interface need to be adapted:
+        key_map = {
+            'src': 'download_url', 'srclang': 'language', 'label': 'language_title',
+            'kind': 'kind', 'enabled': 'enabled'
+        }
+        adapted_captions = []
+        for caption_dict in self.captions:
+            new_dict = {key_map[k]: v for k, v in caption_dict.items()}
+            adapted_captions.append(new_dict)
+
         fragment.content = loader.render_django_template('templates/studio_edit.html', context)
         fragment.add_css(loader.load_unicode('public/css/studio.css'))
         fragment.add_javascript(loader.load_unicode('static/js/studio_edit.js'))
-        fragment.initialize_js('StudioEditableXBlockMixin')
+        fragment.initialize_js('StudioEditableXBlockMixin', {"captions": adapted_captions})
         return fragment
 
     def _get_context_for_template(self):
@@ -161,8 +181,8 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
         context = {
             "video_url": self.video_url,
             "protection_type": self.protection_type,
-            "captions": self.captions,
-            "transcripts_enabled": self.transcripts_enabled and self.captions,
+            "captions": filter(lambda c: c['enabled'], self.captions),
+            "transcripts_enabled": self.transcripts_enabled and filter(lambda c: c['enabled'], self.captions),
             "download_url": self.download_url,
         }
 
@@ -182,8 +202,8 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
         Returns:
             xblock.fragment.Fragment: XBlock HTML fragment
-        """
 
+        """
         fragment = Fragment()
         context.update(self._get_context_for_template())
         fragment.add_content(loader.render_django_template('/templates/player.html', context))

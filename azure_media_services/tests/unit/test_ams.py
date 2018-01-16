@@ -28,7 +28,7 @@ class AMSXBlockTests(unittest.TestCase):
         self.assertEqual(block.token_issuer, 'http://openedx.microsoft.com/')
         self.assertEqual(block.token_scope, 'urn:xblock-azure-media-services')
         self.assertEqual(block.captions, [])
-        self.assertEqual(block.transcripts_enabled, False)
+        self.assertEqual(block.transcripts_enabled, True)
         self.assertEqual(block.download_url, None)
 
     @mock.patch('azure_media_services.ams.get_azure_config', return_value={})
@@ -52,11 +52,11 @@ class AMSXBlockTests(unittest.TestCase):
         context = render_django_template.call_args[0][1]
         self.assertEqual(context['has_azure_config'], False)
         self.assertEqual(context['list_stream_videos'], [])
-        self.assertEqual(len(context['fields']), 9)
+        self.assertEqual(len(context['fields']), 10)
 
         frag.add_javascript.assert_called_once_with('static/js/studio_edit.js')
         frag.add_css.assert_called_once_with("public/css/studio.css")
-        frag.initialize_js.assert_called_once_with("StudioEditableXBlockMixin")
+        frag.initialize_js.assert_called_once_with("StudioEditableXBlockMixin", {"captions": []})
 
     @mock.patch('azure_media_services.ams.Video.objects.filter', return_value=mock.Mock(order_by=mock.Mock(
         return_value=['video1', 'video2'])))
