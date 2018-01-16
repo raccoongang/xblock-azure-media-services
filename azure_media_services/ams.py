@@ -12,9 +12,9 @@ import logging
 from django.core.exceptions import ImproperlyConfigured
 from edxval.models import Video
 import requests
+from web_fragments.fragment import Fragment
 from xblock.core import List, Scope, String, XBlock
 from xblock.fields import Boolean
-from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
@@ -202,8 +202,8 @@ class AMSXBlock(StudioEditableXBlockMixin, XBlock):
 
         Returns:
             xblock.fragment.Fragment: XBlock HTML fragment
-        """
 
+        """
         fragment = Fragment()
         context.update(self._get_context_for_template())
         fragment.add_content(loader.render_django_template('/templates/player.html', context))

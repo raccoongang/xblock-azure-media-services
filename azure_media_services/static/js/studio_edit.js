@@ -253,8 +253,8 @@ function StudioEditableXBlockMixin(runtime, element, initJson) {
                 html = '<li class="select-holder"><div class="wrap-input-captions"><input id="checkbox-captions-' + i +
                         '" type="checkbox" name="captions" value="' + data[i].download_url +
                         '" data-srclang="' + data[i].language + '" data-label="' + data[i].language_title + '"' +
-                    (data[i].enabled ? ' checked' : '') + '/><label for="checkbox-captions-' + i + '">' + data[i].language_title +
-                        ' (' + data[i].language + ')</label></div></li>';
+                        (data[i].enabled ? ' checked' : '') + '/><label for="checkbox-captions-' + i + '">' +
+                        data[i].language_title + ' (' + data[i].language + ')</label></div></li>';
                 $containerCaptions.append(html);
             }
             setOnChangeCaptions();
@@ -277,7 +277,8 @@ function StudioEditableXBlockMixin(runtime, element, initJson) {
      * @param edxVideoID
      */
     function setVideoId(edxVideoID) {
-        $(element).find('[data-field-name = "video_id"] input').val(edxVideoID).trigger('change');
+        $(element).find('[data-field-name = "video_id"] input').val(edxVideoID)
+            .trigger('change');
     }
 
     /**
