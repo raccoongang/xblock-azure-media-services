@@ -33,12 +33,19 @@
 
             if (this.options_.identity === 'off') {  // eslint-disable-line no-underscore-dangle
                 $wrapper.addClass('closed');
+                this.emitEvent('hide_transcript');
             } else {
                 transcriptCues = initTranscript(  // eslint-disable-line no-use-before-define
                     player, $transcriptContainer, this.track
                 );
                 $wrapper.removeClass('closed');
+                this.emitEvent('show_transcript');
             }
+        },
+        emitEvent: function(evtType) {
+            var player = this.player();
+            var transcriptsEvent = new CustomEvent(evtType);
+            player.el().dispatchEvent(transcriptsEvent);
         }
     });
 

@@ -92,6 +92,20 @@ function AzureMediaServicesBlock(runtime, container, jsonArgs) {
             }
         );
 
+        // transcriptsAmpPlugin event:
+        this.addEventListener('show_transcript',
+            function() {
+                sendPlayerEvent(eventPostUrl, events.TRANSCRIPT_SHOWN, {}, userIsAuthenticated);
+            }
+        );
+
+        // transcriptsAmpPlugin event:
+        this.addEventListener('hide_transcript',
+            function() {
+                sendPlayerEvent(eventPostUrl, events.TRANSCRIPTS_HIDDEN, {}, userIsAuthenticated);
+            }
+        );
+
         // Log when closed captions (subtitles) are toggled.
         // NOTE we use classes from Azure Media Player which may change.
         subtitleEls = $(container).find('.vjs-subtitles-button .vjs-menu-item');
